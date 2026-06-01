@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Politique de confidentialité — ReputIA</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #05050a;
+      --bg-card: #0e0e1a;
+      --bg-section: #0a0a14;
+      --text: #f1f1f8;
+      --text-muted: #9898b5;
+      --accent: #f59e0b;
+      --accent-hover: #fbbf24;
+      --border: rgba(248, 158, 11, 0.12);
+      --border-subtle: rgba(255,255,255,0.06);
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.7;
+      font-size: 16px;
+    }
+
+    /* ── NAV ── */
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(5, 5, 10, 0.92);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 0 2rem;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      text-decoration: none;
+    }
+
+    .nav-logo-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #f97316, #ef4444);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+
+    .nav-logo-text {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -0.02em;
+    }
+
+    .nav-back {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      transition: color 0.2s;
+    }
+    .nav-back:hover { color: var(--accent); }
+
+    /* ── HERO ── */
+    .hero {
+      padding: 5rem 2rem 3rem;
+      text-align: center;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .hero-badge {
+      display: inline-block;
+      background: rgba(245, 158, 11, 0.1);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      color: var(--accent);
+      font-size: 0.8rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 0.35rem 0.9rem;
+      border-radius: 999px;
+      margin-bottom: 1.5rem;
+    }
+
+    .hero h1 {
+      font-size: clamp(1.8rem, 4vw, 2.8rem);
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      color: var(--text);
+      margin-bottom: 1rem;
+    }
+
+    .hero-meta {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+    }
+
+    /* ── LAYOUT ── */
+    .container {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 0 2rem 6rem;
+    }
+
+    /* ── TOC ── */
+    .toc {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 2rem;
+      margin-bottom: 3rem;
+    }
+
+    .toc h2 {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--accent);
+      margin-bottom: 1rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .toc ol {
+      list-style: none;
+      counter-reset: toc-counter;
+      display: grid;
+      gap: 0.4rem;
+    }
+
+    .toc ol li {
+      counter-increment: toc-counter;
+      display: flex;
+      align-items: baseline;
+      gap: 0.6rem;
+    }
+
+    .toc ol li::before {
+      content: counter(toc-counter, decimal-leading-zero);
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--accent);
+      flex-shrink: 0;
+    }
+
+    .toc ol li a {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.9rem;
+      transition: color 0.2s;
+    }
+    .toc ol li a:hover { color: var(--text); }
+
+    /* ── SECTIONS ── */
+    .section {
+      margin-bottom: 3.5rem;
+      scroll-margin-top: 80px;
+    }
+
+    .section h2 {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 1.25rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    .section h2 .num {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--accent);
+      background: rgba(245,158,11,0.1);
+      border: 1px solid rgba(245,158,11,0.2);
+      border-radius: 6px;
+      padding: 0.1rem 0.45rem;
+      flex-shrink: 0;
+    }
+
+    .section h3 {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text);
+      margin: 1.5rem 0 0.5rem;
+    }
+
+    .section p {
+      color: var(--text-muted);
+      margin-bottom: 0.9rem;
+      font-size: 0.95rem;
+    }
+
+    .section ul, .section ol {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      padding-left: 1.4rem;
+      margin-bottom: 0.9rem;
+      display: grid;
+      gap: 0.3rem;
+    }
+
+    .section ul li, .section ol li {
+      padding-left: 0.3rem;
+    }
+
+    strong {
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+    a:hover { color: var(--accent-hover); text-decoration: underline; }
+
+    /* ── INFO / WARN BOXES ── */
+    .info-box {
+      background: rgba(245,158,11,0.05);
+      border: 1px solid rgba(245,158,11,0.2);
+      border-left: 3px solid var(--accent);
+      border-radius: 0 10px 10px 0;
+      padding: 1rem 1.25rem;
+      margin: 1.2rem 0;
+    }
+    .info-box p { margin-bottom: 0; color: var(--text-muted); font-size: 0.9rem; }
+    .info-box p:first-child { color: var(--text); font-weight: 500; }
+
+    .warn-box {
+      background: rgba(239,68,68,0.05);
+      border: 1px solid rgba(239,68,68,0.2);
+      border-left: 3px solid #ef4444;
+      border-radius: 0 10px 10px 0;
+      padding: 1rem 1.25rem;
+      margin: 1.2rem 0;
+    }
+    .warn-box p { margin-bottom: 0; color: var(--text-muted); font-size: 0.9rem; }
+
+    .green-box {
+      background: rgba(34,197,94,0.05);
+      border: 1px solid rgba(34,197,94,0.2);
+      border-left: 3px solid #22c55e;
+      border-radius: 0 10px 10px 0;
+      padding: 1rem 1.25rem;
+      margin: 1.2rem 0;
+    }
+    .green-box p { margin-bottom: 0; color: var(--text-muted); font-size: 0.9rem; }
+    .green-box p:first-child { color: #86efac; font-weight: 500; }
+
+    /* ── TABLE ── */
+    .table-wrap { overflow-x: auto; margin: 1.2rem 0; border-radius: 12px; border: 1px solid var(--border-subtle); }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+
+    thead tr {
+      background: rgba(245,158,11,0.08);
+    }
+
+    th {
+      color: var(--accent);
+      font-weight: 600;
+      text-align: left;
+      padding: 0.85rem 1rem;
+      white-space: nowrap;
+      font-size: 0.82rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    td {
+      color: var(--text-muted);
+      padding: 0.75rem 1rem;
+      border-top: 1px solid var(--border-subtle);
+      vertical-align: top;
+    }
+
+    tbody tr:hover td { background: rgba(255,255,255,0.02); }
+
+    /* ── DROITS GRID ── */
+    .rights-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 1rem;
+      margin: 1.5rem 0;
+    }
+
+    .right-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 1.25rem;
+      transition: border-color 0.2s;
+    }
+    .right-card:hover { border-color: var(--border); }
+
+    .right-card .icon {
+      font-size: 1.4rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .right-card h4 {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 0.3rem;
+    }
+
+    .right-card p {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin: 0;
+      line-height: 1.5;
+    }
+
+    /* ── FOOTER ── */
+    footer {
+      background: var(--bg-section);
+      border-top: 1px solid var(--border-subtle);
+      padding: 2.5rem 2rem;
+      text-align: center;
+    }
+
+    .footer-logo {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+      text-decoration: none;
+    }
+
+    .footer-logo span { font-size: 1rem; font-weight: 700; color: var(--text); }
+
+    .footer-links {
+      display: flex;
+      justify-content: center;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+      margin-bottom: 1rem;
+    }
+
+    .footer-links a {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+    .footer-links a:hover { color: var(--accent); }
+    .footer-links a.active { color: var(--accent); }
+
+    .footer-copy {
+      font-size: 0.8rem;
+      color: #5a5a7a;
+    }
+
+    /* ── SCROLL TOP ── */
+    .scroll-top {
+      position: fixed;
+      bottom: 2rem;
+      right: 2rem;
+      background: var(--accent);
+      color: #000;
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      cursor: pointer;
+      text-decoration: none;
+      box-shadow: 0 4px 20px rgba(245,158,11,0.4);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .scroll-top:hover { transform: translateY(-2px); box-shadow: 0 6px 28px rgba(245,158,11,0.5); }
+
+    @media (max-width: 640px) {
+      .hero { padding: 3.5rem 1.5rem 2rem; }
+      .container { padding: 0 1.25rem 4rem; }
+      nav { padding: 0 1.25rem; }
+      .toc { padding: 1.5rem; }
+      .rights-grid { grid-template-columns: 1fr 1fr; }
+    }
+
+    @media (max-width: 400px) {
+      .rights-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="/" class="nav-logo">
+    <div class="nav-logo-icon">⭐</div>
+    <span class="nav-logo-text">ReputIA</span>
+  </a>
+  <a href="/" class="nav-back">
+    ← Retour au site
+  </a>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-badge">RGPD — Document légal</div>
+  <h1>Politique de confidentialité</h1>
+  <p class="hero-meta">Dernière mise à jour : <strong>Juin 2026</strong> — Conforme au Règlement Général sur la Protection des Données (RGPD) et à la loi Informatique et Libertés.</p>
+</div>
+
+<!-- CONTENT -->
+<div class="container">
+
+  <!-- TABLE DES MATIÈRES -->
+  <div class="toc">
+    <h2>Sommaire</h2>
+    <ol>
+      <li><a href="#identite">Identité du responsable de traitement</a></li>
+      <li><a href="#collecte">Données collectées</a></li>
+      <li><a href="#finalites">Finalités et bases légales</a></li>
+      <li><a href="#conservation">Durées de conservation</a></li>
+      <li><a href="#tiers">Partage avec des tiers</a></li>
+      <li><a href="#hebergement">Hébergement et transferts hors UE</a></li>
+      <li><a href="#cookies">Cookies et traceurs</a></li>
+      <li><a href="#droits">Vos droits RGPD</a></li>
+      <li><a href="#securite">Sécurité des données</a></li>
+      <li><a href="#mineurs">Données des mineurs</a></li>
+      <li><a href="#modifications">Modifications de la politique</a></li>
+      <li><a href="#contact">Contact et DPO</a></li>
+    </ol>
+  </div>
+
+  <!-- 1 -->
+  <div class="section" id="identite">
+    <h2><span class="num">01</span>Identité du responsable de traitement</h2>
+    <div class="table-wrap">
+      <table>
+        <tbody>
+          <tr>
+            <td><strong>Responsable de traitement</strong></td>
+            <td>ReputIA</td>
+          </tr>
+          <tr>
+            <td><strong>Adresse email</strong></td>
+            <td><a href="mailto:contact@reputia.fr">contact@reputia.fr</a></td>
+          </tr>
+          <tr>
+            <td><strong>Délégué à la Protection des Données (DPO)</strong></td>
+            <td><a href="mailto:contact@reputia.fr">contact@reputia.fr</a></td>
+          </tr>
+          <tr>
+            <td><strong>Pays</strong></td>
+            <td>France</td>
+          </tr>
+          <tr>
+            <td><strong>Droit applicable</strong></td>
+            <td>Droit français — RGPD (UE 2016/679)</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p>ReputIA est le <strong>responsable de traitement</strong> au sens du RGPD pour l'ensemble des données personnelles collectées et traitées dans le cadre de la fourniture du service de réponses automatiques aux avis en ligne.</p>
+  </div>
+
+  <!-- 2 -->
+  <div class="section" id="collecte">
+    <h2><span class="num">02</span>Données collectées</h2>
+    <p>ReputIA collecte uniquement les données strictement nécessaires au fonctionnement du service (principe de minimisation des données, article 5 RGPD). Voici les catégories de données traitées :</p>
+
+    <h3>Données d'identification et de compte</h3>
+    <ul>
+      <li><strong>Adresse email</strong> — fournie lors de l'inscription, utilisée pour l'authentification, les notifications et le support</li>
+      <li><strong>Mot de passe</strong> — stocké sous forme chiffrée (hash bcrypt), jamais accessible en clair</li>
+      <li><strong>Nom de l'établissement</strong> — renseigné lors de la configuration du compte</li>
+    </ul>
+
+    <h3>Données de connexion OAuth</h3>
+    <ul>
+      <li><strong>Token d'accès Google OAuth</strong> — permet à ReputIA d'accéder à vos avis Google Business Profile en votre nom, pour les lire et y répondre</li>
+      <li><strong>Token de rafraîchissement Google</strong> — permet le renouvellement automatique des droits d'accès sans reconnexion manuelle</li>
+      <li><strong>Token OAuth Trustpilot</strong> (formule payante) — même finalité pour la plateforme Trustpilot</li>
+    </ul>
+
+    <div class="warn-box">
+      <p>Ces tokens ne permettent à ReputIA d'accéder qu'aux avis de votre établissement, dans le périmètre des autorisations explicitement accordées lors de la connexion OAuth. ReputIA n'accède jamais à d'autres données de vos comptes Google ou Trustpilot.</p>
+    </div>
+
+    <h3>Avis clients</h3>
+    <ul>
+      <li><strong>Avis publics</strong> récupérés via les API officielles de Google et Trustpilot — ces avis sont publics par nature et servent à la génération des réponses automatiques</li>
+      <li><strong>Réponses générées</strong> — conservées pour l'historique et l'amélioration de la pertinence</li>
+    </ul>
+
+    <h3>Données de facturation</h3>
+    <ul>
+      <li>Les informations de paiement (carte bancaire, RIB) sont traitées directement par notre prestataire de paiement sécurisé. ReputIA ne stocke jamais vos données bancaires.</li>
+      <li>Seules les informations de facturation nécessaires (montant, date, référence) sont conservées à des fins comptables.</li>
+    </ul>
+
+    <h3>Données techniques</h3>
+    <ul>
+      <li>Adresse IP de connexion</li>
+      <li>Logs d'utilisation du service (actions réalisées, erreurs)</li>
+      <li>Informations sur le navigateur et l'appareil (user-agent)</li>
+    </ul>
+  </div>
+
+  <!-- 3 -->
+  <div class="section" id="finalites">
+    <h2><span class="num">03</span>Finalités et bases légales</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Finalité</th>
+            <th>Données concernées</th>
+            <th>Base légale (RGPD)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Création et gestion du compte utilisateur</td>
+            <td>Email, mot de passe, nom établissement</td>
+            <td>Exécution du contrat (art. 6.1.b)</td>
+          </tr>
+          <tr>
+            <td>Fourniture du service (réponses automatiques)</td>
+            <td>Tokens OAuth, avis publics</td>
+            <td>Exécution du contrat (art. 6.1.b)</td>
+          </tr>
+          <tr>
+            <td>Facturation et comptabilité</td>
+            <td>Email, informations de paiement</td>
+            <td>Obligation légale (art. 6.1.c)</td>
+          </tr>
+          <tr>
+            <td>Envoi de communications liées au service</td>
+            <td>Email</td>
+            <td>Exécution du contrat (art. 6.1.b)</td>
+          </tr>
+          <tr>
+            <td>Envoi d'emails marketing (newsletter)</td>
+            <td>Email</td>
+            <td>Consentement (art. 6.1.a)</td>
+          </tr>
+          <tr>
+            <td>Sécurité et prévention des fraudes</td>
+            <td>Adresse IP, logs</td>
+            <td>Intérêt légitime (art. 6.1.f)</td>
+          </tr>
+          <tr>
+            <td>Amélioration du service (analytics)</td>
+            <td>Données techniques anonymisées</td>
+            <td>Intérêt légitime (art. 6.1.f)</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="green-box">
+      <p>Engagement fort : aucune revente de données</p>
+      <p>ReputIA s'engage formellement à ne jamais vendre, louer, céder ou partager vos données personnelles à des tiers à des fins commerciales ou publicitaires.</p>
+    </div>
+  </div>
+
+  <!-- 4 -->
+  <div class="section" id="conservation">
+    <h2><span class="num">04</span>Durées de conservation</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Catégorie de données</th>
+            <th>Durée de conservation</th>
+            <th>Justification</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Données de compte actif</td>
+            <td>Durée de l'abonnement + 30 jours après résiliation</td>
+            <td>Continuité du service, délai de réactivation</td>
+          </tr>
+          <tr>
+            <td>Tokens OAuth</td>
+            <td>Durée de l'abonnement + suppression immédiate à la révocation</td>
+            <td>Nécessaire au service</td>
+          </tr>
+          <tr>
+            <td>Avis et réponses générées</td>
+            <td>Durée de l'abonnement + 30 jours</td>
+            <td>Historique utilisateur</td>
+          </tr>
+          <tr>
+            <td>Données de facturation</td>
+            <td>10 ans à compter de la date de facture</td>
+            <td>Obligation légale comptable (art. L123-22 C.com.)</td>
+          </tr>
+          <tr>
+            <td>Logs techniques et sécurité</td>
+            <td>12 mois</td>
+            <td>Sécurité, détection des fraudes</td>
+          </tr>
+          <tr>
+            <td>Données suite à une demande de suppression</td>
+            <td>Suppression sous 30 jours ouvrés</td>
+            <td>Exercice des droits RGPD</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p>À l'expiration de ces délais, les données sont soit supprimées définitivement, soit anonymisées de façon irréversible à des fins statistiques.</p>
+  </div>
+
+  <!-- 5 -->
+  <div class="section" id="tiers">
+    <h2><span class="num">05</span>Partage avec des tiers</h2>
+    <p>ReputIA fait appel à un nombre limité de sous-traitants techniques pour fournir le service. Ces sous-traitants agissent exclusivement sur instruction de ReputIA et dans les limites fixées contractuellement, conformément à l'article 28 du RGPD.</p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Sous-traitant</th>
+            <th>Rôle</th>
+            <th>Localisation</th>
+            <th>Données transmises</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Render</strong></td>
+            <td>Hébergement de l'application et de la base de données</td>
+            <td>USA (Oregon)</td>
+            <td>Toutes les données du service</td>
+          </tr>
+          <tr>
+            <td><strong>Stripe</strong> (ou équivalent)</td>
+            <td>Traitement des paiements</td>
+            <td>USA / UE</td>
+            <td>Données de paiement uniquement</td>
+          </tr>
+          <tr>
+            <td><strong>Google API</strong></td>
+            <td>Accès aux avis Google Business Profile</td>
+            <td>USA</td>
+            <td>Tokens OAuth, lecture/écriture des avis</td>
+          </tr>
+          <tr>
+            <td><strong>Trustpilot API</strong></td>
+            <td>Accès aux avis Trustpilot</td>
+            <td>UE (Danemark)</td>
+            <td>Tokens OAuth, lecture/écriture des avis</td>
+          </tr>
+          <tr>
+            <td><strong>Fournisseur IA</strong></td>
+            <td>Génération des réponses automatiques</td>
+            <td>USA</td>
+            <td>Contenu des avis (anonymisé autant que possible)</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Aucune autre transmission de données à des tiers n'est réalisée, sauf obligation légale (réquisition judiciaire, injonction d'une autorité compétente).</p>
+  </div>
+
+  <!-- 6 -->
+  <div class="section" id="hebergement">
+    <h2><span class="num">06</span>Hébergement et transferts hors Union Européenne</h2>
+    <h3>Hébergeur principal</h3>
+    <p>Le service ReputIA est hébergé sur l'infrastructure <strong>Render</strong>, dont les serveurs sont situés aux <strong>États-Unis (région Oregon)</strong>. Ce transfert de données hors de l'Union Européenne est encadré conformément au RGPD.</p>
+
+    <div class="warn-box">
+      <p>Vos données sont traitées sur des serveurs situés aux États-Unis. Bien que des garanties contractuelles soient en place, ce transfert implique que vos données se trouvent hors de l'Espace Économique Européen (EEE).</p>
+    </div>
+
+    <h3>Garanties applicables aux transferts hors UE</h3>
+    <p>Les transferts vers les États-Unis sont encadrés par les mécanismes légaux suivants :</p>
+    <ul>
+      <li><strong>Clauses Contractuelles Types (CCT)</strong> de la Commission Européenne — intégrées aux contrats avec les sous-traitants concernés</li>
+      <li><strong>Data Privacy Framework (DPF)</strong> UE–États-Unis — dans les cas où le sous-traitant est certifié</li>
+    </ul>
+    <p>Pour plus d'informations sur le Data Privacy Framework, consultez <a href="https://www.dataprivacyframework.gov" target="_blank" rel="noopener">dataprivacyframework.gov</a>.</p>
+
+    <h3>Fournisseur IA</h3>
+    <p>La génération des réponses automatiques est réalisée via un modèle d'IA dont les serveurs sont également situés aux États-Unis. Le contenu des avis transmis à ce service est limité au strict nécessaire et des mesures de minimisation sont appliquées.</p>
+  </div>
+
+  <!-- 7 -->
+  <div class="section" id="cookies">
+    <h2><span class="num">07</span>Cookies et traceurs</h2>
+    <h3>Cookies strictement nécessaires</h3>
+    <p>ReputIA utilise des cookies strictement nécessaires au fonctionnement du service :</p>
+    <ul>
+      <li><strong>Cookie de session</strong> — maintient votre connexion active pendant votre visite</li>
+      <li><strong>Cookie CSRF</strong> — protège contre les attaques de type Cross-Site Request Forgery</li>
+    </ul>
+    <p>Ces cookies ne nécessitent pas votre consentement car ils sont indispensables au service (article 82 de la loi Informatique et Libertés).</p>
+
+    <h3>Cookies analytiques</h3>
+    <p>Si ReputIA utilise des outils d'analyse d'audience, ceux-ci fonctionnent en mode anonymisé ou font l'objet d'un recueil de consentement préalable via une bannière cookie conforme aux recommandations de la CNIL.</p>
+
+    <h3>Cookies tiers</h3>
+    <p>La page d'accueil et les pages publiques peuvent charger des ressources tierces (polices Google Fonts, scripts de paiement Stripe) susceptibles de déposer des cookies. Vous pouvez vous y opposer via les paramètres de votre navigateur.</p>
+  </div>
+
+  <!-- 8 -->
+  <div class="section" id="droits">
+    <h2><span class="num">08</span>Vos droits RGPD</h2>
+    <p>Conformément au RGPD (articles 15 à 22), vous disposez des droits suivants sur vos données personnelles :</p>
+
+    <div class="rights-grid">
+      <div class="right-card">
+        <div class="icon">👁</div>
+        <h4>Droit d'accès</h4>
+        <p>Obtenir une copie de toutes vos données personnelles traitées par ReputIA.</p>
+      </div>
+      <div class="right-card">
+        <div class="icon">✏️</div>
+        <h4>Droit de rectification</h4>
+        <p>Corriger vos données inexactes ou incomplètes.</p>
+      </div>
+      <div class="right-card">
+        <div class="icon">🗑</div>
+        <h4>Droit à l'effacement</h4>
+        <p>Demander la suppression de vos données ("droit à l'oubli"), sous réserve des obligations légales.</p>
+      </div>
+      <div class="right-card">
+        <div class="icon">⏸</div>
+        <h4>Droit à la limitation</h4>
+        <p>Demander la suspension du traitement en attendant la résolution d'un litige.</p>
+      </div>
+      <div class="right-card">
+        <div class="icon">📦</div>
+        <h4>Droit à la portabilité</h4>
+        <p>Recevoir vos données dans un format structuré et lisible par machine.</p>
+      </div>
+      <div class="right-card">
+        <div class="icon">🚫</div>
+        <h4>Droit d'opposition</h4>
+        <p>Vous opposer au traitement fondé sur l'intérêt légitime (ex. analytics, marketing).</p>
+      </div>
+      <div class="right-card">
+        <div class="icon">🤖</div>
+        <h4>Décision automatisée</h4>
+        <p>Ne pas faire l'objet d'une décision basée exclusivement sur un traitement automatisé.</p>
+      </div>
+      <div class="right-card">
+        <div class="icon">↩️</div>
+        <h4>Retrait du consentement</h4>
+        <p>Retirer votre consentement à tout moment pour les traitements qui en dépendent.</p>
+      </div>
+    </div>
+
+    <h3>Comment exercer vos droits</h3>
+    <p>Pour exercer l'un de ces droits, envoyez votre demande par email à <a href="mailto:contact@reputia.fr">contact@reputia.fr</a> en précisant :</p>
+    <ul>
+      <li>L'adresse email associée à votre compte ReputIA</li>
+      <li>Le droit que vous souhaitez exercer</li>
+      <li>Toute précision utile pour traiter votre demande</li>
+    </ul>
+    <p>ReputIA s'engage à répondre dans un délai maximum d'<strong>1 mois</strong> à compter de la réception de votre demande (délai pouvant être prolongé de 2 mois supplémentaires en cas de complexité, avec information préalable).</p>
+
+    <div class="info-box">
+      <p>Droit de réclamation auprès de la CNIL</p>
+      <p>Si vous estimez que vos droits ne sont pas respectés, vous avez le droit de déposer une réclamation auprès de la Commission Nationale de l'Informatique et des Libertés (CNIL) — <a href="https://www.cnil.fr" target="_blank" rel="noopener">cnil.fr</a> — ou de toute autorité de contrôle compétente dans votre pays de résidence au sein de l'UE.</p>
+    </div>
+  </div>
+
+  <!-- 9 -->
+  <div class="section" id="securite">
+    <h2><span class="num">09</span>Sécurité des données</h2>
+    <p>ReputIA met en œuvre des mesures techniques et organisationnelles appropriées pour protéger vos données personnelles contre tout accès non autorisé, perte, destruction ou altération :</p>
+    <ul>
+      <li><strong>Chiffrement en transit</strong> — toutes les communications sont chiffrées via TLS 1.2 minimum (HTTPS)</li>
+      <li><strong>Chiffrement au repos</strong> — les données sensibles (tokens OAuth, mots de passe) sont chiffrées ou hachées en base de données</li>
+      <li><strong>Accès restreint</strong> — seul le personnel autorisé de ReputIA a accès aux données de production, selon le principe du moindre privilège</li>
+      <li><strong>Authentification renforcée</strong> — l'accès aux systèmes internes est protégé par authentification multi-facteurs</li>
+      <li><strong>Sauvegardes régulières</strong> — les données sont sauvegardées quotidiennement avec une rétention de 30 jours</li>
+      <li><strong>Surveillance des anomalies</strong> — des alertes automatiques détectent les comportements suspects</li>
+    </ul>
+    <h3>Gestion des incidents</h3>
+    <p>En cas de violation de données personnelles susceptible d'engendrer un risque pour vos droits et libertés, ReputIA s'engage à notifier la CNIL dans les <strong>72 heures</strong> suivant la découverte de l'incident, conformément à l'article 33 du RGPD. Si l'incident est susceptible d'engendrer un risque élevé, vous en serez informé directement dans les meilleurs délais.</p>
+  </div>
+
+  <!-- 10 -->
+  <div class="section" id="mineurs">
+    <h2><span class="num">10</span>Données des mineurs</h2>
+    <p>Le service ReputIA est exclusivement destiné aux <strong>professionnels majeurs</strong>. ReputIA ne collecte pas sciemment de données personnelles concernant des personnes de moins de 18 ans.</p>
+    <p>Si vous avez connaissance qu'un mineur a transmis des données personnelles à ReputIA, veuillez nous contacter immédiatement à <a href="mailto:contact@reputia.fr">contact@reputia.fr</a> afin que nous puissions procéder à leur suppression.</p>
+  </div>
+
+  <!-- 11 -->
+  <div class="section" id="modifications">
+    <h2><span class="num">11</span>Modifications de la politique</h2>
+    <p>ReputIA se réserve le droit de modifier la présente Politique de confidentialité pour l'adapter à l'évolution du service, de la réglementation ou des pratiques de sécurité.</p>
+    <p>Toute modification substantielle sera communiquée aux utilisateurs par email <strong>au moins 15 jours avant son entrée en vigueur</strong>. La date de dernière mise à jour est indiquée en haut de ce document.</p>
+    <p>La version en vigueur est toujours consultable sur la page <a href="/confidentialite.html">reputia.fr/confidentialite</a>.</p>
+  </div>
+
+  <!-- 12 -->
+  <div class="section" id="contact">
+    <h2><span class="num">12</span>Contact et DPO</h2>
+    <p>Pour toute question relative à la protection de vos données personnelles, ou pour exercer vos droits, vous pouvez contacter notre Délégué à la Protection des Données (DPO) :</p>
+    <div class="info-box">
+      <p>Délégué à la Protection des Données — ReputIA</p>
+      <p>Email : <a href="mailto:contact@reputia.fr">contact@reputia.fr</a></p>
+      <p>Objet de l'email recommandé : "RGPD — [nature de votre demande]"</p>
+    </div>
+    <p>Nous nous engageons à accuser réception de votre demande sous <strong>48 heures ouvrées</strong> et à la traiter dans les délais légaux applicables.</p>
+    <p>Vous pouvez également exercer vos droits directement via votre espace client dans la rubrique "Données personnelles".</p>
+    <h3>Autorité de contrôle</h3>
+    <p>L'autorité de contrôle compétente pour les traitements réalisés par ReputIA est :</p>
+    <ul>
+      <li><strong>CNIL</strong> (Commission Nationale de l'Informatique et des Libertés)</li>
+      <li>3 place de Fontenoy — TSA 80715 — 75334 Paris Cedex 07</li>
+      <li><a href="https://www.cnil.fr" target="_blank" rel="noopener">www.cnil.fr</a></li>
+    </ul>
+  </div>
+
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <a href="/" class="footer-logo">
+    <div class="nav-logo-icon" style="width:28px;height:28px;font-size:14px;">⭐</div>
+    <span>ReputIA</span>
+  </a>
+  <div class="footer-links">
+    <a href="/cgu.html">CGU</a>
+    <a href="/confidentialite.html" class="active">Confidentialité</a>
+    <a href="mailto:contact@reputia.fr">contact@reputia.fr</a>
+    <a href="/">Retour au site</a>
+  </div>
+  <p class="footer-copy">© 2026 ReputIA — Tous droits réservés — Conforme RGPD — Autorité de contrôle : CNIL (France)</p>
+</footer>
+
+<a href="#" class="scroll-top" title="Haut de page">↑</a>
+
+</body>
+</html>

@@ -85,6 +85,9 @@
         <input type="password" id="signup-password" placeholder="••••••••" minlength="6" required>
       </div>
       <button class="btn" type="submit" id="btn-signup">Créer mon compte gratuit</button>
+      <p style="font-size:.78rem;color:#6b7280;text-align:center;margin-top:.75rem;line-height:1.5">
+        📧 Après votre inscription, vous recevrez un email de bienvenue avec le guide complet pour connecter votre Google My Business.
+      </p>
     </form>
   </div>
 
@@ -187,6 +190,11 @@ async function handleReset(e) {
     btn.disabled = false;
     btn.textContent = 'Réinitialiser le mot de passe';
   }
+}
+
+// Auto-ouvre l'onglet inscription si ?signup=1
+if (new URLSearchParams(window.location.search).get('signup') === '1') {
+  showTab('signup');
 }
 </script>
 </body>

@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Conditions Générales d'Utilisation — ReputIA</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #05050a;
+      --bg-card: #0e0e1a;
+      --bg-section: #0a0a14;
+      --text: #f1f1f8;
+      --text-muted: #9898b5;
+      --accent: #f59e0b;
+      --accent-hover: #fbbf24;
+      --border: rgba(248, 158, 11, 0.12);
+      --border-subtle: rgba(255,255,255,0.06);
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.7;
+      font-size: 16px;
+    }
+
+    /* ── NAV ── */
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(5, 5, 10, 0.92);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 0 2rem;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      text-decoration: none;
+    }
+
+    .nav-logo-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #f97316, #ef4444);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+
+    .nav-logo-text {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -0.02em;
+    }
+
+    .nav-back {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      transition: color 0.2s;
+    }
+    .nav-back:hover { color: var(--accent); }
+
+    /* ── HERO ── */
+    .hero {
+      padding: 5rem 2rem 3rem;
+      text-align: center;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .hero-badge {
+      display: inline-block;
+      background: rgba(245, 158, 11, 0.1);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      color: var(--accent);
+      font-size: 0.8rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 0.35rem 0.9rem;
+      border-radius: 999px;
+      margin-bottom: 1.5rem;
+    }
+
+    .hero h1 {
+      font-size: clamp(1.8rem, 4vw, 2.8rem);
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      color: var(--text);
+      margin-bottom: 1rem;
+    }
+
+    .hero-meta {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+    }
+
+    /* ── LAYOUT ── */
+    .container {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 0 2rem 6rem;
+    }
+
+    /* ── TOC ── */
+    .toc {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 2rem;
+      margin-bottom: 3rem;
+    }
+
+    .toc h2 {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--accent);
+      margin-bottom: 1rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .toc ol {
+      list-style: none;
+      counter-reset: toc-counter;
+      display: grid;
+      gap: 0.4rem;
+    }
+
+    .toc ol li {
+      counter-increment: toc-counter;
+      display: flex;
+      align-items: baseline;
+      gap: 0.6rem;
+    }
+
+    .toc ol li::before {
+      content: counter(toc-counter, decimal-leading-zero);
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--accent);
+      flex-shrink: 0;
+    }
+
+    .toc ol li a {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.9rem;
+      transition: color 0.2s;
+    }
+    .toc ol li a:hover { color: var(--text); }
+
+    /* ── SECTIONS ── */
+    .section {
+      margin-bottom: 3.5rem;
+      scroll-margin-top: 80px;
+    }
+
+    .section h2 {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 1.25rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    .section h2 .num {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--accent);
+      background: rgba(245,158,11,0.1);
+      border: 1px solid rgba(245,158,11,0.2);
+      border-radius: 6px;
+      padding: 0.1rem 0.45rem;
+      flex-shrink: 0;
+    }
+
+    .section h3 {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text);
+      margin: 1.5rem 0 0.5rem;
+    }
+
+    .section p {
+      color: var(--text-muted);
+      margin-bottom: 0.9rem;
+      font-size: 0.95rem;
+    }
+
+    .section ul, .section ol {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      padding-left: 1.4rem;
+      margin-bottom: 0.9rem;
+      display: grid;
+      gap: 0.3rem;
+    }
+
+    .section ul li, .section ol li {
+      padding-left: 0.3rem;
+    }
+
+    strong {
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+    a:hover { color: var(--accent-hover); text-decoration: underline; }
+
+    /* ── INFO BOXES ── */
+    .info-box {
+      background: rgba(245,158,11,0.05);
+      border: 1px solid rgba(245,158,11,0.2);
+      border-left: 3px solid var(--accent);
+      border-radius: 0 10px 10px 0;
+      padding: 1rem 1.25rem;
+      margin: 1.2rem 0;
+    }
+    .info-box p { margin-bottom: 0; color: var(--text-muted); font-size: 0.9rem; }
+    .info-box p:first-child { color: var(--text); font-weight: 500; }
+
+    .warn-box {
+      background: rgba(239,68,68,0.05);
+      border: 1px solid rgba(239,68,68,0.2);
+      border-left: 3px solid #ef4444;
+      border-radius: 0 10px 10px 0;
+      padding: 1rem 1.25rem;
+      margin: 1.2rem 0;
+    }
+    .warn-box p { margin-bottom: 0; color: var(--text-muted); font-size: 0.9rem; }
+
+    /* ── TABLE ── */
+    .table-wrap { overflow-x: auto; margin: 1.2rem 0; border-radius: 12px; border: 1px solid var(--border-subtle); }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+
+    thead tr {
+      background: rgba(245,158,11,0.08);
+    }
+
+    th {
+      color: var(--accent);
+      font-weight: 600;
+      text-align: left;
+      padding: 0.85rem 1rem;
+      white-space: nowrap;
+      font-size: 0.82rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    td {
+      color: var(--text-muted);
+      padding: 0.75rem 1rem;
+      border-top: 1px solid var(--border-subtle);
+      vertical-align: top;
+    }
+
+    tbody tr:hover td { background: rgba(255,255,255,0.02); }
+
+    /* ── FOOTER ── */
+    footer {
+      background: var(--bg-section);
+      border-top: 1px solid var(--border-subtle);
+      padding: 2.5rem 2rem;
+      text-align: center;
+    }
+
+    .footer-logo {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+      text-decoration: none;
+    }
+
+    .footer-logo span { font-size: 1rem; font-weight: 700; color: var(--text); }
+
+    .footer-links {
+      display: flex;
+      justify-content: center;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+      margin-bottom: 1rem;
+    }
+
+    .footer-links a {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+    .footer-links a:hover { color: var(--accent); }
+    .footer-links a.active { color: var(--accent); }
+
+    .footer-copy {
+      font-size: 0.8rem;
+      color: #5a5a7a;
+    }
+
+    /* ── SCROLL TO TOP ── */
+    .scroll-top {
+      position: fixed;
+      bottom: 2rem;
+      right: 2rem;
+      background: var(--accent);
+      color: #000;
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      cursor: pointer;
+      text-decoration: none;
+      box-shadow: 0 4px 20px rgba(245,158,11,0.4);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .scroll-top:hover { transform: translateY(-2px); box-shadow: 0 6px 28px rgba(245,158,11,0.5); }
+
+    @media (max-width: 640px) {
+      .hero { padding: 3.5rem 1.5rem 2rem; }
+      .container { padding: 0 1.25rem 4rem; }
+      nav { padding: 0 1.25rem; }
+      .toc { padding: 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="/" class="nav-logo">
+    <div class="nav-logo-icon">⭐</div>
+    <span class="nav-logo-text">ReputIA</span>
+  </a>
+  <a href="/" class="nav-back">
+    ← Retour au site
+  </a>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-badge">Document légal</div>
+  <h1>Conditions Générales d'Utilisation</h1>
+  <p class="hero-meta">Dernière mise à jour : <strong>Juin 2026</strong> — Ces CGU s'appliquent à toute utilisation du service ReputIA.</p>
+</div>
+
+<!-- CONTENT -->
+<div class="container">
+
+  <!-- TABLE DES MATIÈRES -->
+  <div class="toc">
+    <h2>Sommaire</h2>
+    <ol>
+      <li><a href="#presentation">Présentation du service</a></li>
+      <li><a href="#acces">Accès et inscription</a></li>
+      <li><a href="#essai">Essai gratuit et abonnement</a></li>
+      <li><a href="#prix">Prix et facturation</a></li>
+      <li><a href="#remboursement">Politique de remboursement</a></li>
+      <li><a href="#utilisation">Utilisation du service</a></li>
+      <li><a href="#obligations">Obligations de l'utilisateur</a></li>
+      <li><a href="#propriete">Propriété intellectuelle</a></li>
+      <li><a href="#donnees">Données personnelles</a></li>
+      <li><a href="#responsabilite">Limitation de responsabilité</a></li>
+      <li><a href="#suspension">Suspension et résiliation</a></li>
+      <li><a href="#modifications">Modifications des CGU</a></li>
+      <li><a href="#droit">Droit applicable et litiges</a></li>
+      <li><a href="#contact">Contact</a></li>
+    </ol>
+  </div>
+
+  <!-- 1 -->
+  <div class="section" id="presentation">
+    <h2><span class="num">01</span>Présentation du service</h2>
+    <p>ReputIA est un service SaaS (Software as a Service) édité en France, accessible à l'adresse <strong>reputia.fr</strong>, qui permet aux professionnels et aux entreprises de gérer et d'automatiser les réponses à leurs avis en ligne grâce à l'intelligence artificielle.</p>
+    <p>Le service prend en charge les plateformes suivantes :</p>
+    <ul>
+      <li><strong>Google My Business (Google Business Profile)</strong> — disponible dans toutes les formules, y compris l'essai gratuit</li>
+      <li><strong>Trustpilot</strong> — disponible dans les formules payantes</li>
+    </ul>
+    <p>L'éditeur du service est <strong>ReputIA</strong>, joignable à l'adresse email <a href="mailto:contact@reputia.fr">contact@reputia.fr</a>.</p>
+    <div class="info-box">
+      <p>Ces Conditions Générales d'Utilisation constituent un contrat juridiquement contraignant entre ReputIA et tout utilisateur du service. En vous inscrivant ou en utilisant ReputIA, vous acceptez pleinement et sans réserve l'intégralité des présentes CGU.</p>
+    </div>
+  </div>
+
+  <!-- 2 -->
+  <div class="section" id="acces">
+    <h2><span class="num">02</span>Accès et inscription</h2>
+    <h3>Conditions d'accès</h3>
+    <p>Le service ReputIA est réservé aux <strong>professionnels</strong> (personnes morales ou personnes physiques agissant dans le cadre de leur activité professionnelle). L'inscription en tant que particulier à des fins strictement personnelles n'est pas prévue.</p>
+    <p>Pour accéder au service, l'utilisateur doit :</p>
+    <ul>
+      <li>Être âgé d'au moins 18 ans et avoir la capacité juridique</li>
+      <li>Créer un compte en renseignant une adresse email valide et un mot de passe sécurisé</li>
+      <li>Connecter au minimum un compte Google My Business via OAuth</li>
+      <li>Accepter les présentes CGU et la Politique de confidentialité</li>
+    </ul>
+    <h3>Sécurité du compte</h3>
+    <p>L'utilisateur est seul responsable de la confidentialité de ses identifiants de connexion. Toute utilisation du service réalisée via son compte lui est directement imputable. En cas de suspicion d'accès non autorisé, l'utilisateur doit en informer immédiatement ReputIA à l'adresse <a href="mailto:contact@reputia.fr">contact@reputia.fr</a>.</p>
+  </div>
+
+  <!-- 3 -->
+  <div class="section" id="essai">
+    <h2><span class="num">03</span>Essai gratuit et abonnement</h2>
+    <h3>Période d'essai</h3>
+    <p>ReputIA propose une <strong>période d'essai gratuite de 7 jours</strong>, sans engagement et sans saisie de carte bancaire, pour tout nouvel utilisateur. Cet essai est limité à l'intégration <strong>Google My Business</strong>.</p>
+    <div class="info-box">
+      <p>Aucune information de paiement n'est requise pour démarrer l'essai. À l'issue de la période d'essai, le compte passe automatiquement en mode inactif jusqu'à souscription d'un abonnement payant.</p>
+    </div>
+    <h3>Passage à l'abonnement payant</h3>
+    <p>À l'issue de la période d'essai, l'utilisateur peut souscrire un abonnement mensuel pour continuer à bénéficier du service. La souscription implique la saisie d'un moyen de paiement valide et l'acceptation du prélèvement mensuel automatique.</p>
+  </div>
+
+  <!-- 4 -->
+  <div class="section" id="prix">
+    <h2><span class="num">04</span>Prix et facturation</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Formule</th>
+            <th>Prix</th>
+            <th>Engagement</th>
+            <th>Périmètre</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Essai gratuit</strong></td>
+            <td>Gratuit</td>
+            <td>7 jours, sans CB</td>
+            <td>1 établissement GMB</td>
+          </tr>
+          <tr>
+            <td><strong>Abonnement mensuel</strong></td>
+            <td><strong>29 € TTC / mois</strong></td>
+            <td>Aucun engagement</td>
+            <td>Par établissement</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Le prix de <strong>29 € TTC par mois et par établissement</strong> est prélevé mensuellement à date anniversaire de souscription. La TVA applicable est celle en vigueur en France au taux légal.</p>
+    <h3>Facturation</h3>
+    <p>Une facture est émise et mise à disposition dans l'espace client à chaque renouvellement mensuel. Les factures sont conservées pendant une durée minimale de 10 ans conformément aux obligations légales françaises.</p>
+    <h3>Modification des tarifs</h3>
+    <p>ReputIA se réserve le droit de modifier ses tarifs. Toute modification sera communiquée à l'utilisateur par email au moins <strong>30 jours avant son entrée en vigueur</strong>. L'utilisateur peut résilier son abonnement sans frais avant la prise d'effet du nouveau tarif.</p>
+  </div>
+
+  <!-- 5 -->
+  <div class="section" id="remboursement">
+    <h2><span class="num">05</span>Politique de remboursement</h2>
+    <div class="info-box">
+      <p>Garantie satisfait ou remboursé — 30 jours</p>
+      <p>Si vous n'êtes pas satisfait du service dans les 30 jours suivant votre première souscription payante, ReputIA s'engage à vous rembourser intégralement le premier mois d'abonnement, sans justification requise.</p>
+    </div>
+    <p>Pour exercer cette garantie, il suffit d'envoyer un email à <a href="mailto:contact@reputia.fr">contact@reputia.fr</a> avec l'objet "Demande de remboursement" depuis l'adresse email associée à votre compte, dans un délai de 30 jours calendaires suivant la date du premier prélèvement.</p>
+    <p>Le remboursement sera effectué sur le même moyen de paiement que celui utilisé pour la souscription, dans un délai maximum de <strong>14 jours ouvrés</strong> à compter de la validation de la demande.</p>
+    <p>Cette garantie est applicable une seule fois par utilisateur et ne couvre pas les mois d'abonnement suivants. Les renouvellements ultérieurs ne sont pas remboursables, sauf cas prévu par la loi.</p>
+    <h3>Droit de rétractation</h3>
+    <p>Conformément à l'article L221-28 du Code de la consommation, le droit de rétractation légal de 14 jours ne s'applique pas aux services pleinement exécutés avant la fin du délai de rétractation, ni aux contenus numériques dont l'exécution a commencé avec l'accord exprès du consommateur. Toutefois, la garantie commerciale de 30 jours accordée par ReputIA s'y substitue avantageusement.</p>
+  </div>
+
+  <!-- 6 -->
+  <div class="section" id="utilisation">
+    <h2><span class="num">06</span>Utilisation du service</h2>
+    <h3>Fonctionnement général</h3>
+    <p>ReputIA génère automatiquement des réponses aux avis clients en ligne à l'aide de modèles d'intelligence artificielle. Les réponses sont formulées en tenant compte du contenu de l'avis, du ton de l'établissement et des paramètres configurés par l'utilisateur.</p>
+    <h3>Supervision recommandée</h3>
+    <p>L'utilisateur est fortement encouragé à superviser régulièrement les réponses générées automatiquement. Bien que ReputIA s'efforce de produire des réponses pertinentes et appropriées, aucun système d'IA n'est infaillible. <strong>La responsabilité éditoriale des réponses publiées appartient à l'utilisateur.</strong></p>
+    <h3>Disponibilité du service</h3>
+    <p>ReputIA s'engage à fournir un service disponible au moins <strong>99 % du temps</strong> sur une base mensuelle, hors maintenances planifiées. Les maintenances sont annoncées par email ou via le tableau de bord avec un préavis raisonnable. ReputIA ne peut garantir une disponibilité ininterrompue en cas de défaillance des API tierces (Google, Trustpilot).</p>
+  </div>
+
+  <!-- 7 -->
+  <div class="section" id="obligations">
+    <h2><span class="num">07</span>Obligations de l'utilisateur</h2>
+    <p>L'utilisateur s'engage à :</p>
+    <ul>
+      <li>Fournir des informations exactes et à jour lors de l'inscription</li>
+      <li>Utiliser le service dans le strict respect du droit français et européen applicable</li>
+      <li>Ne pas détourner le service à des fins frauduleuses ou illicites</li>
+      <li>Ne pas tenter de contourner les mesures de sécurité ou d'accéder à des données de tiers</li>
+      <li>Respecter les Conditions d'utilisation des plateformes tierces (Google, Trustpilot)</li>
+      <li>Ne pas utiliser le service pour générer des réponses mensongères, diffamatoires ou contraires à l'éthique</li>
+      <li>Maintenir un moyen de paiement valide pendant toute la durée de l'abonnement</li>
+    </ul>
+    <div class="warn-box">
+      <p>Tout manquement grave aux présentes obligations peut entraîner la suspension immédiate du compte, sans préavis ni remboursement, et engage la responsabilité de l'utilisateur.</p>
+    </div>
+  </div>
+
+  <!-- 8 -->
+  <div class="section" id="propriete">
+    <h2><span class="num">08</span>Propriété intellectuelle</h2>
+    <h3>Droits de ReputIA</h3>
+    <p>L'ensemble des éléments composant le service ReputIA (logiciel, algorithmes, interface, marque, logo, contenus éditoriaux) est la propriété exclusive de ReputIA et protégé par le droit de la propriété intellectuelle. Toute reproduction, représentation ou exploitation non autorisée est strictement interdite.</p>
+    <h3>Droits de l'utilisateur</h3>
+    <p>L'abonnement confère à l'utilisateur une licence d'utilisation personnelle, non exclusive, non transférable et révocable du service, pour la durée de l'abonnement et dans le cadre décrit aux présentes CGU.</p>
+    <h3>Contenu généré</h3>
+    <p>Les réponses aux avis générées par ReputIA et publiées par l'utilisateur sur des plateformes tierces sont soumises aux conditions de ces plateformes. L'utilisateur conserve la responsabilité éditoriale de tout contenu publié sous son nom ou celui de son établissement.</p>
+  </div>
+
+  <!-- 9 -->
+  <div class="section" id="donnees">
+    <h2><span class="num">09</span>Données personnelles</h2>
+    <p>Le traitement des données personnelles est encadré par la <strong>Politique de confidentialité</strong> de ReputIA, disponible à l'adresse <a href="/confidentialite.html">reputia.fr/confidentialite</a>, qui fait partie intégrante des présentes CGU.</p>
+    <p>Les principales données traitées dans le cadre du service sont :</p>
+    <ul>
+      <li>L'adresse email de l'utilisateur (compte)</li>
+      <li>Les avis clients publics récupérés via les API Google et Trustpilot</li>
+      <li>Les tokens OAuth permettant l'accès aux comptes connectés</li>
+    </ul>
+    <p>ReputIA s'engage à ne jamais revendre ces données à des tiers à des fins commerciales.</p>
+  </div>
+
+  <!-- 10 -->
+  <div class="section" id="responsabilite">
+    <h2><span class="num">10</span>Limitation de responsabilité</h2>
+    <p>ReputIA met en œuvre tous les moyens raisonnables pour fournir un service de qualité. Cependant, sa responsabilité est limitée dans les cas suivants :</p>
+    <ul>
+      <li>Interruption du service liée à des défaillances des API tierces (Google, Trustpilot)</li>
+      <li>Contenu inapproprié généré par l'IA malgré les filtres en place — la relecture reste de la responsabilité de l'utilisateur</li>
+      <li>Perte de données résultant d'une faute de l'utilisateur ou d'un événement de force majeure</li>
+      <li>Modifications des conditions d'accès aux plateformes tierces indépendantes de la volonté de ReputIA</li>
+    </ul>
+    <p>En tout état de cause, la responsabilité de ReputIA ne saurait excéder le montant des sommes effectivement versées par l'utilisateur au cours des <strong>3 derniers mois</strong> précédant le fait générateur du dommage.</p>
+    <div class="warn-box">
+      <p>ReputIA n'est pas responsable des conséquences (commerciales, réputationnelles ou autres) résultant de réponses automatiquement publiées par le service. L'utilisateur reste seul décisionnaire de l'activation de la publication automatique.</p>
+    </div>
+  </div>
+
+  <!-- 11 -->
+  <div class="section" id="suspension">
+    <h2><span class="num">11</span>Suspension et résiliation</h2>
+    <h3>Résiliation par l'utilisateur</h3>
+    <p>L'utilisateur peut résilier son abonnement à tout moment depuis son espace client ou en contactant <a href="mailto:contact@reputia.fr">contact@reputia.fr</a>. La résiliation prend effet à la fin de la période de facturation en cours. Aucun remboursement prorata temporis n'est accordé, sauf dans le cadre de la garantie 30 jours.</p>
+    <h3>Résiliation ou suspension par ReputIA</h3>
+    <p>ReputIA se réserve le droit de suspendre ou de résilier un compte en cas de :</p>
+    <ul>
+      <li>Non-paiement ou échec de prélèvement non régularisé sous 7 jours</li>
+      <li>Violation grave ou répétée des présentes CGU</li>
+      <li>Utilisation frauduleuse du service</li>
+      <li>Demande d'une autorité judiciaire ou administrative compétente</li>
+    </ul>
+    <p>En cas de résiliation pour manquement, aucun remboursement n'est dû. Les données de l'utilisateur sont conservées 30 jours après la résiliation, puis supprimées.</p>
+  </div>
+
+  <!-- 12 -->
+  <div class="section" id="modifications">
+    <h2><span class="num">12</span>Modifications des CGU</h2>
+    <p>ReputIA se réserve le droit de modifier les présentes CGU à tout moment. Toute modification substantielle sera notifiée à l'utilisateur par email à l'adresse associée à son compte, au minimum <strong>15 jours avant son entrée en vigueur</strong>.</p>
+    <p>La poursuite de l'utilisation du service après cette période vaut acceptation des nouvelles conditions. Si l'utilisateur refuse les nouvelles conditions, il peut résilier son abonnement sans frais avant leur entrée en vigueur.</p>
+    <p>La version en vigueur des CGU est toujours accessible sur la page <a href="/cgu.html">reputia.fr/cgu</a>, avec indication de la date de dernière mise à jour.</p>
+  </div>
+
+  <!-- 13 -->
+  <div class="section" id="droit">
+    <h2><span class="num">13</span>Droit applicable et litiges</h2>
+    <p>Les présentes CGU sont régies par le <strong>droit français</strong>. En cas de litige relatif à l'interprétation ou à l'exécution des présentes, les parties s'engagent à rechercher une solution amiable dans un délai de 30 jours à compter de la notification du désaccord.</p>
+    <p>À défaut de résolution amiable, tout litige sera soumis à la compétence exclusive des <strong>tribunaux de Paris</strong>.</p>
+    <div class="info-box">
+      <p>Médiation de la consommation</p>
+      <p>Conformément aux articles L616-1 et R616-1 du Code de la consommation, ReputIA propose un dispositif de médiation de la consommation. En cas de litige non résolu, vous pouvez recourir gratuitement au médiateur compétent avant toute action en justice.</p>
+    </div>
+  </div>
+
+  <!-- 14 -->
+  <div class="section" id="contact">
+    <h2><span class="num">14</span>Contact</h2>
+    <p>Pour toute question relative aux présentes CGU ou au service ReputIA, vous pouvez nous contacter :</p>
+    <ul>
+      <li><strong>Par email :</strong> <a href="mailto:contact@reputia.fr">contact@reputia.fr</a></li>
+      <li><strong>Via l'espace client :</strong> rubrique "Support" disponible après connexion</li>
+    </ul>
+    <p>Nous nous engageons à répondre à toute demande dans un délai de <strong>3 jours ouvrés</strong>.</p>
+  </div>
+
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <a href="/" class="footer-logo">
+    <div class="nav-logo-icon" style="width:28px;height:28px;font-size:14px;">⭐</div>
+    <span>ReputIA</span>
+  </a>
+  <div class="footer-links">
+    <a href="/cgu.html" class="active">CGU</a>
+    <a href="/confidentialite.html">Confidentialité</a>
+    <a href="mailto:contact@reputia.fr">contact@reputia.fr</a>
+    <a href="/">Retour au site</a>
+  </div>
+  <p class="footer-copy">© 2026 ReputIA — Tous droits réservés — Droit français applicable — Tribunal compétent : Paris</p>
+</footer>
+
+<a href="#" class="scroll-top" title="Haut de page">↑</a>
+
+</body>
+</html>
