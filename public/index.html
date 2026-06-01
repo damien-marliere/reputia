@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ReputIA — Connexion</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#0a0a0f;color:#e5e7eb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center}
+  .container{width:100%;max-width:420px;padding:2rem}
+  .logo{text-align:center;margin-bottom:2rem}
+  .logo h1{font-size:2rem;font-weight:800;background:linear-gradient(135deg,#f59e0b,#ef4444);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+  .logo p{color:#6b7280;margin-top:.5rem;font-size:.9rem}
+  .card{background:#111118;border:1px solid #1f2937;border-radius:1rem;padding:2rem}
+  .tabs{display:flex;background:#0a0a0f;border-radius:.5rem;padding:.25rem;margin-bottom:1.5rem}
+  .tab{flex:1;padding:.6rem;text-align:center;border-radius:.375rem;cursor:pointer;font-size:.875rem;color:#6b7280;transition:all .2s}
+  .tab.active{background:#f59e0b;color:#000;font-weight:600}
+  .form-group{margin-bottom:1rem}
+  label{display:block;font-size:.875rem;color:#9ca3af;margin-bottom:.4rem}
+  input{width:100%;padding:.75rem 1rem;background:#1a1a2e;border:1px solid #2d2d44;border-radius:.5rem;color:#e5e7eb;font-size:.9rem;outline:none;transition:border .2s}
+  input:focus{border-color:#f59e0b}
+  .btn{width:100%;padding:.875rem;background:linear-gradient(135deg,#f59e0b,#ef4444);border:none;border-radius:.5rem;color:#000;font-weight:700;font-size:1rem;cursor:pointer;transition:opacity .2s;margin-top:.5rem}
+  .btn:hover{opacity:.9}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+  .error{background:#1f0a0a;border:1px solid #ef4444;border-radius:.5rem;padding:.75rem 1rem;color:#f87171;font-size:.875rem;margin-bottom:1rem;display:none}
+  .divider{text-align:center;color:#4b5563;font-size:.8rem;margin:1rem 0;position:relative}
+  .divider::before,.divider::after{content:'';position:absolute;top:50%;width:42%;height:1px;background:#1f2937}
+  .divider::before{left:0}.divider::after{right:0}
+  .footer-text{text-align:center;color:#4b5563;font-size:.8rem;margin-top:1.5rem}
+  .footer-text a{color:#f59e0b;text-decoration:none}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="logo">
+    <h1>ReputIA</h1>
+    <p>Réponses automatiques à vos avis Google</p>
+  </div>
+
+  <div class="card">
+    <div class="tabs">
+      <div class="tab active" id="tab-login" onclick="showTab('login')">Connexion</div>
+      <div class="tab" id="tab-signup" onclick="showTab('signup')">Inscription</div>
+    </div>
+
+    <div id="error" class="error"></div>
+
+    <!-- LOGIN -->
+    <form id="form-login" onsubmit="handleLogin(event)">
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="login-email" placeholder="vous@exemple.com" required>
+      </div>
+      <div class="form-group">
+        <label>Mot de passe</label>
+        <input type="password" id="login-password" placeholder="••••••••" required>
+      </div>
+      <button class="btn" type="submit" id="btn-login">Se connecter</button>
+      <p style="text-align:center;margin-top:.75rem"><a href="#" onclick="showTab('reset');return false" style="color:#6b7280;font-size:.8rem;text-decoration:none">Mot de passe oublié ?</a></p>
+    </form>
+
+    <!-- RESET PASSWORD -->
+    <form id="form-reset" style="display:none" onsubmit="handleReset(event)">
+      <p style="color:#9ca3af;font-size:.85rem;margin-bottom:1rem">Entrez votre email et choisissez un nouveau mot de passe.</p>
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="reset-email" placeholder="vous@exemple.com" required>
+      </div>
+      <div class="form-group">
+        <label>Nouveau mot de passe (6 caractères min.)</label>
+        <input type="password" id="reset-password" placeholder="••••••••" minlength="6" required>
+      </div>
+      <button class="btn" type="submit" id="btn-reset">Réinitialiser le mot de passe</button>
+      <p style="text-align:center;margin-top:.75rem"><a href="#" onclick="showTab('login');return false" style="color:#6b7280;font-size:.8rem;text-decoration:none">← Retour à la connexion</a></p>
+    </form>
+
+    <!-- SIGNUP -->
+    <form id="form-signup" style="display:none" onsubmit="handleSignup(event)">
+      <div class="form-group">
+        <label>Email professionnel</label>
+        <input type="email" id="signup-email" placeholder="vous@votrebusiness.com" required>
+      </div>
+      <div class="form-group">
+        <label>Mot de passe (6 caractères min.)</label>
+        <input type="password" id="signup-password" placeholder="••••••••" minlength="6" required>
+      </div>
+      <button class="btn" type="submit" id="btn-signup">Créer mon compte gratuit</button>
+    </form>
+  </div>
+
+  <p class="footer-text">
+    En vous connectant, vous acceptez nos <a href="#">CGU</a> et notre <a href="#">politique de confidentialité</a>.
+  </p>
+</div>
+
+<script>
+function showTab(tab) {
+  document.getElementById('tab-login').classList.toggle('active', tab === 'login');
+  document.getElementById('tab-signup').classList.toggle('active', tab === 'signup');
+  document.getElementById('form-login').style.display = tab === 'login' ? '' : 'none';
+  document.getElementById('form-signup').style.display = tab === 'signup' ? '' : 'none';
+  document.getElementById('form-reset').style.display = tab === 'reset' ? '' : 'none';
+  document.querySelector('.tabs').style.display = tab === 'reset' ? 'none' : 'flex';
+  showError('');
+}
+
+function showError(msg) {
+  const el = document.getElementById('error');
+  el.style.display = msg ? 'block' : 'none';
+  el.textContent = msg;
+}
+
+async function handleLogin(e) {
+  e.preventDefault();
+  const btn = document.getElementById('btn-login');
+  btn.disabled = true;
+  btn.textContent = 'Connexion…';
+  showError('');
+
+  const res = await fetch('/api/login', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      email: document.getElementById('login-email').value,
+      password: document.getElementById('login-password').value
+    })
+  });
+  const data = await res.json();
+
+  if (data.ok) {
+    window.location.href = '/dashboard.html';
+  } else {
+    showError(data.error || 'Erreur de connexion');
+    btn.disabled = false;
+    btn.textContent = 'Se connecter';
+  }
+}
+
+async function handleSignup(e) {
+  e.preventDefault();
+  const btn = document.getElementById('btn-signup');
+  btn.disabled = true;
+  btn.textContent = 'Création…';
+  showError('');
+
+  const res = await fetch('/api/signup', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      email: document.getElementById('signup-email').value,
+      password: document.getElementById('signup-password').value
+    })
+  });
+  const data = await res.json();
+
+  if (data.ok) {
+    window.location.href = '/dashboard.html';
+  } else {
+    showError(data.error || 'Erreur d\'inscription');
+    btn.disabled = false;
+    btn.textContent = 'Créer mon compte gratuit';
+  }
+}
+async function handleReset(e) {
+  e.preventDefault();
+  const btn = document.getElementById('btn-reset');
+  btn.disabled = true;
+  btn.textContent = 'Réinitialisation…';
+  showError('');
+
+  const res = await fetch('/api/reset-password', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      email: document.getElementById('reset-email').value,
+      new_password: document.getElementById('reset-password').value
+    })
+  });
+  const data = await res.json();
+
+  if (data.ok) {
+    showError('');
+    alert('Mot de passe réinitialisé ! Vous pouvez maintenant vous connecter.');
+    showTab('login');
+  } else {
+    showError(data.error || 'Erreur');
+    btn.disabled = false;
+    btn.textContent = 'Réinitialiser le mot de passe';
+  }
+}
+</script>
+</body>
+</html>
