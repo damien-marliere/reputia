@@ -13,6 +13,30 @@ const fetch = (...args) => import('node-fetch').then(({ default: f }) => f(...ar
 const app = express();
 
 // ─────────────────────────────────────────
+// CONFIG PLATEFORMES
+// ─────────────────────────────────────────
+const PLATFORM_CONFIG = {
+  tripadvisor:  { prefix: 'ta_',  name: 'TripAdvisor',          icon: '🧭', needsUrl: true,   needsToken: false },
+  facebook:     { prefix: 'fb_',  name: 'Facebook',             icon: '📘', needsUrl: true,   needsToken: true  },
+  pagesjaunes:  { prefix: 'pj_',  name: 'Pages Jaunes',         icon: '📒', needsUrl: true,   needsToken: false },
+  thefork:      { prefix: 'tf_',  name: 'TheFork / LaFourchette',icon: '🍽️', needsUrl: true,   needsToken: false },
+  booking:      { prefix: 'bk_',  name: 'Booking.com',          icon: '🏨', needsUrl: true,   needsToken: false },
+  airbnb:       { prefix: 'ab_',  name: 'Airbnb',               icon: '🏠', needsUrl: true,   needsToken: false },
+  avisverifies: { prefix: 'av_',  name: 'Avis Vérifiés',        icon: '✅', needsUrl: true,   needsToken: false },
+  amazon:       { prefix: 'az_',  name: 'Amazon Seller',        icon: '📦', needsUrl: true,   needsToken: false }
+};
+
+// Scrape headers réalistes
+const SCRAPE_HEADERS = {
+  'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+  'Accept-Language': 'fr-FR,fr;q=0.9,en;q=0.8',
+  'Accept-Encoding': 'gzip, deflate, br',
+  'Cache-Control': 'no-cache',
+  'Pragma': 'no-cache'
+};
+
+// ─────────────────────────────────────────
 // BASE DE DONNÉES SQLite
 // ─────────────────────────────────────────
 const db = new DatabaseSync('./reputia.db');
@@ -32,6 +56,7 @@ db.exec(`CREATE TABLE IF NOT EXISTS locations (
   google_location_name  TEXT NOT NULL,
   business_name         TEXT DEFAULT 'Mon établissement',
   business_type         TEXT DEFAULT 'restaurant',
+  platform_url          TEXT DEFAULT '',
   access_token          TEXT,
   refresh_token         TEXT NOT NULL,
   auto_respond          INTEGER DEFAULT 0,
@@ -52,6 +77,9 @@ db.exec(`CREATE TABLE IF NOT EXISTS reviews (
   created_at         DATETIME DEFAULT CURRENT_TIMESTAMP,
   responded_at       DATETIME
 )`);
+
+// Migrations pour colonnes éventuellement manquantes
+try { db.exec("ALTER TABLE locations ADD COLUMN platform_url TEXT DEFAULT ''") } catch(e) {}
 
 // ─────────────────────────────────────────
 // GOOGLE OAUTH2
@@ -104,7 +132,6 @@ app.post('/api/signup', async (req, res) => {
     req.session.userId = result.lastInsertRowid;
     res.json({ ok: true });
   } catch (e) {
-    console.error('Signup error:', e.message);
     if (e.message && e.message.includes('UNIQUE')) {
       res.json({ error: 'Cet email est déjà utilisé' });
     } else {
@@ -123,7 +150,6 @@ app.post('/api/login', async (req, res) => {
   res.json({ ok: true });
 });
 
-// Mot de passe oublié — reset direct (pas d'email, app locale)
 app.post('/api/reset-password', async (req, res) => {
   const { email, new_password } = req.body;
   if (!email || !new_password || new_password.length < 6) {
@@ -185,7 +211,6 @@ app.get('/auth/google/callback', async (req, res) => {
 
     let locationCount = 0;
 
-    // Étape 1 : récupérer les comptes GMB (API v1, pas d'approbation requise)
     try {
       const accountMgmt = google.mybusinessaccountmanagement({ version: 'v1', auth: oauth2Client });
       const accountsRes = await accountMgmt.accounts.list();
@@ -196,7 +221,6 @@ app.get('/auth/google/callback', async (req, res) => {
         const locName = account.name;
         const bizName = account.accountName || 'Mon établissement';
 
-        // Étape 2 : récupérer les établissements (API mybusinessbusinessinformation v1)
         try {
           const bizInfo = google.mybusinessbusinessinformation({ version: 'v1', auth: oauth2Client });
           const locsRes = await bizInfo.accounts.locations.list({
@@ -206,18 +230,15 @@ app.get('/auth/google/callback', async (req, res) => {
           const locs = locsRes.data.locations || [];
 
           for (const loc of locs) {
-            const lName = loc.name;
-            const lBiz = loc.title || bizName;
-            const existing = db.prepare('SELECT id FROM locations WHERE google_location_name = ? AND user_id = ?').get(lName, userId);
+            const existing = db.prepare('SELECT id FROM locations WHERE google_location_name = ? AND user_id = ?').get(loc.name, userId);
             if (existing) {
               db.prepare('UPDATE locations SET access_token = ?, refresh_token = ? WHERE id = ?').run(tokens.access_token || '', tokens.refresh_token || '', existing.id);
             } else {
-              db.prepare('INSERT INTO locations (user_id, google_location_name, business_name, access_token, refresh_token) VALUES (?, ?, ?, ?, ?)').run(userId, lName, lBiz, tokens.access_token || '', tokens.refresh_token || '');
+              db.prepare('INSERT INTO locations (user_id, google_location_name, business_name, access_token, refresh_token) VALUES (?, ?, ?, ?, ?)').run(userId, loc.name, loc.title || bizName, tokens.access_token || '', tokens.refresh_token || '');
               locationCount++;
             }
           }
         } catch (e2) {
-          // mybusinessbusinessinformation non dispo — sauvegarder le compte directement
           console.log('[OAuth] Étapes établissements ignorée:', e2.message);
           const existing = db.prepare('SELECT id FROM locations WHERE google_location_name = ? AND user_id = ?').get(locName, userId);
           if (existing) {
@@ -229,7 +250,6 @@ app.get('/auth/google/callback', async (req, res) => {
         }
       }
     } catch (e1) {
-      // Même si la liste des comptes échoue, sauvegarder les tokens avec un emplacement générique
       console.log('[OAuth] Liste comptes échouée:', e1.message);
       const existing = db.prepare('SELECT id FROM locations WHERE user_id = ?').get(userId);
       if (!existing) {
@@ -242,7 +262,7 @@ app.get('/auth/google/callback', async (req, res) => {
 
     res.redirect(`/dashboard.html?connected=1&locations=${locationCount}`);
   } catch (e) {
-    console.error('Erreur OAuth callback:', e.message, e.stack);
+    console.error('Erreur OAuth callback:', e.message);
     res.redirect('/dashboard.html?error=oauth_failed');
   }
 });
@@ -270,7 +290,6 @@ app.get('/auth/trustpilot/callback', async (req, res) => {
   if (!userId) return res.redirect('/dashboard.html?error=invalid_state');
 
   try {
-    // Échange code contre token
     const tokenRes = await fetch('https://api.trustpilot.com/v1/oauth/oauth-business-users-for-applications/accesstoken', {
       method: 'POST',
       headers: {
@@ -282,14 +301,13 @@ app.get('/auth/trustpilot/callback', async (req, res) => {
     const tokens = await tokenRes.json();
     if (!tokens.access_token) throw new Error('Pas de token: ' + JSON.stringify(tokens));
 
-    // Récupérer le business unit
     const meRes = await fetch('https://api.trustpilot.com/v1/private/business-users/me', {
       headers: { 'Authorization': `Bearer ${tokens.access_token}` }
     });
     const meData = await meRes.json();
     const businessUnitId = meData.businessUnitId || meData.id;
     const bizName = meData.name || 'Mon établissement Trustpilot';
-    if (!businessUnitId) throw new Error('businessUnitId introuvable dans: ' + JSON.stringify(meData));
+    if (!businessUnitId) throw new Error('businessUnitId introuvable');
 
     const locName = `tp_${businessUnitId}`;
     const existing = db.prepare('SELECT id FROM locations WHERE google_location_name = ? AND user_id = ?').get(locName, userId);
@@ -300,7 +318,6 @@ app.get('/auth/trustpilot/callback', async (req, res) => {
       db.prepare('INSERT INTO locations (user_id, google_location_name, business_name, access_token, refresh_token) VALUES (?, ?, ?, ?, ?)')
         .run(userId, locName, bizName, tokens.access_token, tokens.refresh_token || '');
     }
-    console.log('[TP OAuth] Connecté:', bizName, '/', businessUnitId);
     res.redirect('/dashboard.html?tp_connected=1');
   } catch (e) {
     console.error('[TP OAuth]', e.message);
@@ -309,12 +326,124 @@ app.get('/auth/trustpilot/callback', async (req, res) => {
 });
 
 // ─────────────────────────────────────────
+// ROUTES PLATEFORMES (URL-based)
+// ─────────────────────────────────────────
+
+// GET /api/platforms — statut de chaque plateforme
+app.get('/api/platforms', requireAuth, (req, res) => {
+  const userId = req.session.userId;
+  const result = {};
+
+  // Google
+  const googleLoc = db.prepare(`
+    SELECT id FROM locations WHERE user_id = ? AND active = 1
+    AND google_location_name NOT LIKE 'tp_%'
+    AND google_location_name NOT LIKE 'ta_%'
+    AND google_location_name NOT LIKE 'fb_%'
+    AND google_location_name NOT LIKE 'pj_%'
+    AND google_location_name NOT LIKE 'tf_%'
+    AND google_location_name NOT LIKE 'bk_%'
+    AND google_location_name NOT LIKE 'ab_%'
+    AND google_location_name NOT LIKE 'av_%'
+    AND google_location_name NOT LIKE 'az_%'
+    AND google_location_name NOT LIKE 'manual_%'
+    AND google_location_name NOT LIKE 'demo_%'
+  `).get(userId);
+  result.google = { connected: !!googleLoc, type: 'oauth' };
+
+  // Trustpilot
+  const tpLoc = db.prepare("SELECT id FROM locations WHERE user_id = ? AND active = 1 AND google_location_name LIKE 'tp_%'").get(userId);
+  result.trustpilot = { connected: !!tpLoc, type: 'oauth' };
+
+  // Autres plateformes URL-based
+  for (const [key, cfg] of Object.entries(PLATFORM_CONFIG)) {
+    const loc = db.prepare(`SELECT id, platform_url, business_name FROM locations WHERE user_id = ? AND active = 1 AND google_location_name LIKE '${cfg.prefix}%'`).get(userId);
+    result[key] = {
+      connected: !!loc,
+      url: loc?.platform_url || '',
+      name: loc?.business_name || '',
+      type: key === 'facebook' ? 'oauth' : 'url'
+    };
+  }
+
+  res.json(result);
+});
+
+// POST /api/platforms/connect — connecter une plateforme via URL
+app.post('/api/platforms/connect', requireAuth, async (req, res) => {
+  const { platform, url, token, business_name } = req.body;
+  const userId = req.session.userId;
+
+  const cfg = PLATFORM_CONFIG[platform];
+  if (!cfg) return res.json({ error: 'Plateforme inconnue' });
+  if (!url && !token) return res.json({ error: 'URL requise' });
+
+  const bizName = business_name || `Mon établissement (${cfg.name})`;
+
+  const existing = db.prepare(`SELECT id FROM locations WHERE user_id = ? AND google_location_name LIKE '${cfg.prefix}%'`).get(userId);
+
+  if (existing) {
+    db.prepare('UPDATE locations SET platform_url = ?, access_token = ?, business_name = ?, active = 1 WHERE id = ?')
+      .run(url || '', token || '', bizName, existing.id);
+  } else {
+    const locName = `${cfg.prefix}${userId}_${Date.now()}`;
+    db.prepare('INSERT INTO locations (user_id, google_location_name, business_name, platform_url, access_token, refresh_token) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(userId, locName, bizName, url || '', token || '', '');
+  }
+
+  // Sync immédiat
+  const loc = db.prepare(`SELECT * FROM locations WHERE user_id = ? AND google_location_name LIKE '${cfg.prefix}%' AND active = 1`).get(userId);
+  let synced = 0;
+  if (loc) {
+    try {
+      const reviews = await fetchNewReviews(loc);
+      synced = reviews.length;
+    } catch(e) {
+      console.error('[CONNECT SYNC]', e.message);
+    }
+  }
+
+  res.json({ ok: true, synced });
+});
+
+// POST /api/platforms/:platform/sync — synchroniser une plateforme
+app.post('/api/platforms/:platform/sync', requireAuth, async (req, res) => {
+  const { platform } = req.params;
+  const userId = req.session.userId;
+
+  const cfg = PLATFORM_CONFIG[platform];
+  if (!cfg) return res.json({ error: 'Plateforme inconnue' });
+
+  const loc = db.prepare(`SELECT * FROM locations WHERE user_id = ? AND google_location_name LIKE '${cfg.prefix}%' AND active = 1`).get(userId);
+  if (!loc) return res.json({ error: 'Plateforme non connectée' });
+
+  try {
+    const reviews = await fetchNewReviews(loc);
+    res.json({ ok: true, newReviews: reviews.length });
+  } catch(e) {
+    res.json({ error: e.message });
+  }
+});
+
+// DELETE /api/platforms/:platform — déconnecter
+app.delete('/api/platforms/:platform', requireAuth, (req, res) => {
+  const { platform } = req.params;
+  const userId = req.session.userId;
+
+  const cfg = PLATFORM_CONFIG[platform];
+  if (!cfg) return res.json({ error: 'Plateforme inconnue' });
+
+  db.prepare(`UPDATE locations SET active = 0 WHERE user_id = ? AND google_location_name LIKE '${cfg.prefix}%'`).run(userId);
+  res.json({ ok: true });
+});
+
+// ─────────────────────────────────────────
 // ROUTES ÉTABLISSEMENTS
 // ─────────────────────────────────────────
 
 app.get('/api/locations', requireAuth, (req, res) => {
   const locations = db.prepare(
-    'SELECT id, business_name, business_type, google_location_name, auto_respond, tone, active, created_at FROM locations WHERE user_id = ? AND active = 1'
+    'SELECT id, business_name, business_type, google_location_name, platform_url, auto_respond, tone, active, created_at FROM locations WHERE user_id = ? AND active = 1'
   ).all(req.session.userId);
   res.json(locations);
 });
@@ -341,7 +470,7 @@ app.delete('/api/locations/:id', requireAuth, (req, res) => {
 app.get('/api/reviews', requireAuth, (req, res) => {
   const { status, location_id } = req.query;
   let query = `
-    SELECT r.*, l.business_name, l.tone, l.business_type
+    SELECT r.*, l.business_name, l.tone, l.business_type, l.google_location_name
     FROM reviews r
     JOIN locations l ON r.location_id = l.id
     WHERE l.user_id = ?
@@ -357,14 +486,13 @@ app.get('/api/reviews', requireAuth, (req, res) => {
 
 app.get('/api/stats', requireAuth, (req, res) => {
   const userId = req.session.userId;
-  const total = db.prepare(`SELECT COUNT(*) as n FROM reviews r JOIN locations l ON r.location_id = l.id WHERE l.user_id = ?`).get(userId).n;
-  const posted = db.prepare(`SELECT COUNT(*) as n FROM reviews r JOIN locations l ON r.location_id = l.id WHERE l.user_id = ? AND r.status = 'posted'`).get(userId).n;
-  const pending = db.prepare(`SELECT COUNT(*) as n FROM reviews r JOIN locations l ON r.location_id = l.id WHERE l.user_id = ? AND r.status IN ('new','generated')`).get(userId).n;
+  const total    = db.prepare(`SELECT COUNT(*) as n FROM reviews r JOIN locations l ON r.location_id = l.id WHERE l.user_id = ?`).get(userId).n;
+  const posted   = db.prepare(`SELECT COUNT(*) as n FROM reviews r JOIN locations l ON r.location_id = l.id WHERE l.user_id = ? AND r.status = 'posted'`).get(userId).n;
+  const pending  = db.prepare(`SELECT COUNT(*) as n FROM reviews r JOIN locations l ON r.location_id = l.id WHERE l.user_id = ? AND r.status IN ('new','generated')`).get(userId).n;
   const avgStars = db.prepare(`SELECT AVG(star_rating) as avg FROM reviews r JOIN locations l ON r.location_id = l.id WHERE l.user_id = ?`).get(userId).avg;
   res.json({ total, posted, pending, avgStars: avgStars ? Math.round(avgStars * 10) / 10 : 0 });
 });
 
-// Générer une réponse IA
 app.post('/api/reviews/:id/generate', requireAuth, async (req, res) => {
   const review = db.prepare(`
     SELECT r.*, l.user_id, l.tone, l.business_name, l.business_type
@@ -386,7 +514,6 @@ app.post('/api/reviews/:id/generate', requireAuth, async (req, res) => {
   }
 });
 
-// Poster la réponse sur Google
 app.post('/api/reviews/:id/post', requireAuth, async (req, res) => {
   const review = db.prepare(`
     SELECT r.*, l.user_id, l.access_token, l.refresh_token, l.google_location_name, l.tone, l.business_name, l.business_type
@@ -398,11 +525,14 @@ app.post('/api/reviews/:id/post', requireAuth, async (req, res) => {
   if (!review.generated_response) return res.json({ error: 'Génère d\'abord une réponse' });
 
   try {
-    const isTrustpilot = review.google_location_name && review.google_location_name.startsWith('tp_');
-    if (isTrustpilot) {
+    const name = review.google_location_name || '';
+    if (name.startsWith('tp_')) {
       await postTrustpilotReply(review, review.google_review_id, review.generated_response);
-    } else {
+    } else if (name.startsWith('google') || review.refresh_token) {
       await postGoogleReply(review, review.generated_response);
+    } else {
+      // Autres plateformes → marqué comme "posté" manuellement
+      console.log(`[POST] Réponse marquée manuellement pour ${name}`);
     }
     db.prepare('UPDATE reviews SET status = ?, responded_at = CURRENT_TIMESTAMP WHERE id = ?').run('posted', review.id);
     res.json({ ok: true });
@@ -411,7 +541,6 @@ app.post('/api/reviews/:id/post', requireAuth, async (req, res) => {
   }
 });
 
-// Modifier la réponse générée
 app.put('/api/reviews/:id/response', requireAuth, (req, res) => {
   const { response } = req.body;
   const review = db.prepare(`
@@ -422,7 +551,6 @@ app.put('/api/reviews/:id/response', requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
-// Rafraîchir les vrais noms d'établissements depuis Google
 app.post('/api/refresh-locations', requireAuth, async (req, res) => {
   const userId = req.session.userId;
   const loc = db.prepare('SELECT * FROM locations WHERE user_id = ?').get(userId);
@@ -434,7 +562,6 @@ app.post('/api/refresh-locations', requireAuth, async (req, res) => {
     const tokenRes = await client.getAccessToken();
     const token = tokenRes.token;
 
-    // Récupérer les comptes
     const accountMgmt = google.mybusinessaccountmanagement({ version: 'v1', auth: client });
     const accountsRes = await accountMgmt.accounts.list();
     const accounts = accountsRes.data.accounts || [];
@@ -443,7 +570,6 @@ app.post('/api/refresh-locations', requireAuth, async (req, res) => {
 
     let updated = 0;
     for (const account of accounts) {
-      // Récupérer les établissements via REST direct
       const locsRes = await fetch(
         `https://mybusinessbusinessinformation.googleapis.com/v1/${account.name}/locations?readMask=name,title`,
         { headers: { 'Authorization': `Bearer ${token}` } }
@@ -451,9 +577,7 @@ app.post('/api/refresh-locations', requireAuth, async (req, res) => {
 
       if (locsRes.ok) {
         const locsData = await locsRes.json();
-        const locs = locsData.locations || [];
-
-        for (const location of locs) {
+        for (const location of (locsData.locations || [])) {
           const existing = db.prepare('SELECT id FROM locations WHERE google_location_name = ? AND user_id = ?').get(location.name, userId);
           if (existing) {
             db.prepare('UPDATE locations SET business_name = ? WHERE id = ?').run(location.title || 'Mon établissement', existing.id);
@@ -463,23 +587,18 @@ app.post('/api/refresh-locations', requireAuth, async (req, res) => {
           updated++;
         }
       } else {
-        // Pas accès aux locations individuelles — au moins mettre à jour le nom du compte
         db.prepare('UPDATE locations SET google_location_name = ?, business_name = ? WHERE user_id = ?').run(account.name, account.accountName || 'Mon établissement', userId);
         updated++;
       }
     }
 
-    // Supprimer les entrées avec des noms génériques (gmb_xxx)
     db.prepare("DELETE FROM locations WHERE user_id = ? AND google_location_name LIKE 'gmb_%'").run(userId);
-
     res.json({ ok: true, updated });
   } catch (e) {
-    console.error('[REFRESH-LOC]', e.message);
     res.json({ error: e.message });
   }
 });
 
-// Ajout manuel d'un avis (copié depuis Google)
 app.post('/api/reviews/manual', requireAuth, (req, res) => {
   const userId = req.session.userId;
   const { reviewer_name, star_rating, comment } = req.body;
@@ -496,11 +615,9 @@ app.post('/api/reviews/manual', requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
-// Mode démo — injecter des faux avis pour tester
 app.post('/api/demo', requireAuth, (req, res) => {
   const userId = req.session.userId;
 
-  // S'assurer qu'il y a au moins un établissement
   let loc = db.prepare('SELECT id FROM locations WHERE user_id = ?').get(userId);
   if (!loc) {
     db.prepare('INSERT INTO locations (user_id, google_location_name, business_name, business_type, access_token, refresh_token) VALUES (?, ?, ?, ?, ?, ?)')
@@ -509,11 +626,11 @@ app.post('/api/demo', requireAuth, (req, res) => {
   }
 
   const demoReviews = [
-    { name: 'Sophie Martin', stars: 5, comment: 'Excellent restaurant, service impeccable et cuisine délicieuse ! Le chef est vraiment talentueux, je reviendrai sans hésiter.' },
-    { name: 'Jean-Pierre Dubois', stars: 2, comment: 'Déçu par l\'attente de 45 minutes alors que le restaurant était à moitié vide. Le plat était froid à l\'arrivée.' },
-    { name: 'Marie Leclerc', stars: 4, comment: 'Très bon repas dans l\'ensemble. L\'ambiance est sympa et les prix raisonnables. Petit bémol sur le dessert un peu décevant.' },
-    { name: 'Thomas Bernard', stars: 5, comment: 'On y fête tous nos anniversaires depuis 5 ans ! Toujours aussi bien, le personnel nous reconnaît et c\'est vraiment agréable.' },
-    { name: 'Isabelle Moreau', stars: 1, comment: 'Service désastreux, commande oubliée deux fois. Je ne recommande absolument pas cet établissement.' },
+    { name: 'Sophie Martin', stars: 5, comment: 'Excellent restaurant, service impeccable et cuisine délicieuse !' },
+    { name: 'Jean-Pierre Dubois', stars: 2, comment: 'Déçu par l\'attente de 45 minutes alors que le restaurant était à moitié vide.' },
+    { name: 'Marie Leclerc', stars: 4, comment: 'Très bon repas dans l\'ensemble. L\'ambiance est sympa et les prix raisonnables.' },
+    { name: 'Thomas Bernard', stars: 5, comment: 'On y fête tous nos anniversaires depuis 5 ans ! Toujours aussi bien.' },
+    { name: 'Isabelle Moreau', stars: 1, comment: 'Service désastreux, commande oubliée deux fois. Je ne recommande pas.' },
   ];
 
   let added = 0;
@@ -522,12 +639,11 @@ app.post('/api/demo', requireAuth, (req, res) => {
     try {
       db.prepare('INSERT INTO reviews (location_id, google_review_id, reviewer_name, star_rating, comment, status) VALUES (?, ?, ?, ?, ?, ?)').run(loc.id, id, r.name, r.stars, r.comment, 'new');
       added++;
-    } catch(e) { /* ignore duplicates */ }
+    } catch(e) {}
   }
   res.json({ ok: true, added });
 });
 
-// Synchronisation manuelle des avis
 app.post('/api/sync', requireAuth, async (req, res) => {
   const locations = db.prepare('SELECT * FROM locations WHERE user_id = ? AND active = 1').all(req.session.userId);
   let newCount = 0;
@@ -539,6 +655,87 @@ app.post('/api/sync', requireAuth, async (req, res) => {
 
   res.json({ ok: true, newReviews: newCount });
 });
+
+// ─────────────────────────────────────────
+// HELPERS SCRAPING JSON-LD
+// ─────────────────────────────────────────
+
+function hashStr(str) {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash) + str.charCodeAt(i);
+    hash = hash & hash;
+  }
+  return Math.abs(hash).toString(36);
+}
+
+function extractJsonLdReviews(html) {
+  const reviews = [];
+  const regex = /<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+  let match;
+
+  while ((match = regex.exec(html)) !== null) {
+    try {
+      const raw = match[1].trim();
+      const data = JSON.parse(raw);
+      const items = Array.isArray(data) ? data : [data];
+
+      for (const item of items) {
+        if (!item) continue;
+
+        // Direct Review object
+        if (item['@type'] === 'Review') {
+          const r = parseJsonLdReview(item);
+          if (r) reviews.push(r);
+        }
+
+        // Reviews embedded in business listing
+        const subReviews = item.review || item.reviews || [];
+        const arr = Array.isArray(subReviews) ? subReviews : [subReviews];
+        for (const sub of arr) {
+          if (sub && (sub['@type'] === 'Review' || sub.reviewRating)) {
+            const r = parseJsonLdReview(sub);
+            if (r) reviews.push(r);
+          }
+        }
+      }
+    } catch(e) {}
+  }
+
+  return reviews;
+}
+
+function parseJsonLdReview(item) {
+  if (!item) return null;
+  const ratingVal = item.reviewRating?.ratingValue ?? item.starRating?.ratingValue ?? null;
+  const author = item.author?.name || (typeof item.author === 'string' ? item.author : null) || 'Anonyme';
+  const text = item.reviewBody || item.description || item.text || '';
+  if (!ratingVal && !text) return null;
+  return {
+    stars: Math.min(5, Math.max(1, Math.round(parseFloat(ratingVal) || 3))),
+    author: String(author).slice(0, 100),
+    text: String(text).slice(0, 2000)
+  };
+}
+
+function storeScrapedReviews(reviews, location, prefix) {
+  const newReviews = [];
+  for (const r of reviews) {
+    // ID stable basé sur contenu
+    const stableId = `${prefix}_${hashStr((r.author + r.text).toLowerCase())}`;
+    const existing = db.prepare('SELECT id FROM reviews WHERE google_review_id = ?').get(stableId);
+    if (existing) continue;
+
+    try {
+      const inserted = db.prepare(
+        'INSERT INTO reviews (location_id, google_review_id, reviewer_name, star_rating, comment, status) VALUES (?, ?, ?, ?, ?, ?)'
+      ).run(location.id, stableId, r.author, r.stars, r.text, 'new');
+      newReviews.push({ id: inserted.lastInsertRowid, reviewer_name: r.author, star_rating: r.stars, comment: r.text, location_id: location.id });
+    } catch(e) {}
+  }
+  console.log(`[SCRAPE:${prefix}] ${location.business_name}: ${newReviews.length} nouveaux avis`);
+  return newReviews;
+}
 
 // ─────────────────────────────────────────
 // FONCTIONS CORE
@@ -603,19 +800,14 @@ async function getGoogleClient(location) {
     access_token: location.access_token,
     refresh_token: location.refresh_token
   });
-
-  // Auto-refresh token si expiré
   client.on('tokens', (tokens) => {
     if (tokens.refresh_token) {
-      db.prepare('UPDATE locations SET refresh_token = ? WHERE google_location_name = ?')
-        .run(tokens.refresh_token, location.google_location_name);
+      db.prepare('UPDATE locations SET refresh_token = ? WHERE google_location_name = ?').run(tokens.refresh_token, location.google_location_name);
     }
     if (tokens.access_token) {
-      db.prepare('UPDATE locations SET access_token = ? WHERE google_location_name = ?')
-        .run(tokens.access_token, location.google_location_name);
+      db.prepare('UPDATE locations SET access_token = ? WHERE google_location_name = ?').run(tokens.access_token, location.google_location_name);
     }
   });
-
   return client;
 }
 
@@ -640,13 +832,33 @@ async function postGoogleReply(location, replyText) {
   }
 }
 
+// ─────────────────────────────────────────
+// FETCH REVIEWS — ROUTEUR PAR PLATEFORME
+// ─────────────────────────────────────────
+
 async function fetchNewReviews(location) {
   const name = location.google_location_name || '';
-  // Déléguer vers Trustpilot
-  if (name.startsWith('tp_')) return fetchTrustpilotReviews(location);
-  // Ignorer les locations génériques Google
-  if (!location.refresh_token || name.startsWith('gmb_') || name.startsWith('manual_') || name.startsWith('demo_')) return [];
 
+  if (name.startsWith('tp_'))  return fetchTrustpilotReviews(location);
+  if (name.startsWith('ta_'))  return fetchTripAdvisorReviews(location);
+  if (name.startsWith('fb_'))  return fetchFacebookReviews(location);
+  if (name.startsWith('pj_'))  return fetchPagesJaunesReviews(location);
+  if (name.startsWith('tf_'))  return fetchTheForkReviews(location);
+  if (name.startsWith('bk_'))  return fetchBookingReviews(location);
+  if (name.startsWith('ab_'))  return fetchAirbnbReviews(location);
+  if (name.startsWith('av_'))  return fetchAvisVerifiesReviews(location);
+  if (name.startsWith('az_'))  return fetchAmazonReviews(location);
+
+  // Google (par défaut)
+  if (!location.refresh_token || name.startsWith('gmb_') || name.startsWith('manual_') || name.startsWith('demo_')) return [];
+  return fetchGoogleReviews(location);
+}
+
+// ─────────────────────────────────────────
+// GOOGLE REVIEWS
+// ─────────────────────────────────────────
+
+async function fetchGoogleReviews(location) {
   const client = await getGoogleClient(location);
   const newReviews = [];
 
@@ -661,17 +873,15 @@ async function fetchNewReviews(location) {
 
     if (!res.ok) {
       const errText = await res.text();
-      console.error(`[SYNC] API ${res.status} pour ${location.business_name}:`, errText.slice(0, 200));
+      console.error(`[SYNC-GOOGLE] API ${res.status}:`, errText.slice(0, 200));
       return [];
     }
 
     const data = await res.json();
-    const reviews = data.reviews || [];
     const starMap = { ONE: 1, TWO: 2, THREE: 3, FOUR: 4, FIVE: 5 };
 
-    for (const review of reviews) {
+    for (const review of (data.reviews || [])) {
       if (review.reviewReply) continue;
-
       const reviewId = review.reviewId || review.name;
       const existing = db.prepare('SELECT id FROM reviews WHERE google_review_id = ?').get(reviewId);
       if (existing) continue;
@@ -680,27 +890,19 @@ async function fetchNewReviews(location) {
       const inserted = db.prepare(
         'INSERT INTO reviews (location_id, google_review_id, reviewer_name, star_rating, comment, status) VALUES (?, ?, ?, ?, ?, ?)'
       ).run(location.id, reviewId, review.reviewer?.displayName || 'Anonyme', starRating, review.comment || '', 'new');
-
-      newReviews.push({
-        id: inserted.lastInsertRowid,
-        google_review_id: reviewId,
-        star_rating: starRating,
-        reviewer_name: review.reviewer?.displayName || 'Anonyme',
-        comment: review.comment || '',
-        location_id: location.id
-      });
+      newReviews.push({ id: inserted.lastInsertRowid, star_rating: starRating, reviewer_name: review.reviewer?.displayName || 'Anonyme', comment: review.comment || '', location_id: location.id });
     }
 
-    console.log(`[SYNC] ${location.business_name}: ${newReviews.length} nouveaux avis`);
+    console.log(`[SYNC-GOOGLE] ${location.business_name}: ${newReviews.length} nouveaux avis`);
   } catch (e) {
-    console.error(`[SYNC] Erreur pour ${location.business_name}:`, e.message);
+    console.error(`[SYNC-GOOGLE] Erreur:`, e.message);
   }
 
   return newReviews;
 }
 
 // ─────────────────────────────────────────
-// TRUSTPILOT FONCTIONS
+// TRUSTPILOT
 // ─────────────────────────────────────────
 
 async function fetchTrustpilotReviews(location) {
@@ -714,7 +916,6 @@ async function fetchTrustpilotReviews(location) {
       { headers: { 'Authorization': `Bearer ${token}` } }
     );
 
-    // Auto-refresh si 401
     if (res.status === 401 && location.refresh_token && TP_API_KEY) {
       const refreshRes = await fetch('https://api.trustpilot.com/v1/oauth/oauth-business-users-for-applications/accesstoken', {
         method: 'POST',
@@ -736,10 +937,7 @@ async function fetchTrustpilotReviews(location) {
       }
     }
 
-    if (!res.ok) {
-      console.error(`[TP SYNC] ${res.status} pour ${location.business_name}`);
-      return [];
-    }
+    if (!res.ok) { console.error(`[TP SYNC] ${res.status}`); return []; }
 
     const data = await res.json();
     return processTrustpilotReviews(data.reviews || [], location);
@@ -758,14 +956,8 @@ function processTrustpilotReviews(reviews, location) {
 
     const inserted = db.prepare(
       'INSERT INTO reviews (location_id, google_review_id, reviewer_name, star_rating, comment, status) VALUES (?, ?, ?, ?, ?, ?)'
-    ).run(
-      location.id, reviewId,
-      review.consumer?.displayName || review.author?.name || 'Anonyme',
-      review.stars || 0,
-      review.text || '',
-      'new'
-    );
-    newReviews.push({ id: inserted.lastInsertRowid, google_review_id: reviewId, star_rating: review.stars || 0, reviewer_name: review.consumer?.displayName || 'Anonyme', comment: review.text || '', location_id: location.id });
+    ).run(location.id, reviewId, review.consumer?.displayName || review.author?.name || 'Anonyme', review.stars || 0, review.text || '', 'new');
+    newReviews.push({ id: inserted.lastInsertRowid, star_rating: review.stars || 0, reviewer_name: review.consumer?.displayName || 'Anonyme', comment: review.text || '', location_id: location.id });
   }
   console.log(`[TP SYNC] ${location.business_name}: ${newReviews.length} nouveaux avis`);
   return newReviews;
@@ -775,15 +967,355 @@ async function postTrustpilotReply(location, reviewId, replyText) {
   const tpReviewId = reviewId.replace('tp_', '');
   const res = await fetch(`https://api.trustpilot.com/v1/private/reviews/${tpReviewId}/reply`, {
     method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${location.access_token}`,
-      'Content-Type': 'application/json'
-    },
+    headers: { 'Authorization': `Bearer ${location.access_token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ message: replyText })
   });
   if (!res.ok) {
     const err = await res.text();
     throw new Error(`Trustpilot ${res.status}: ${err}`);
+  }
+}
+
+// ─────────────────────────────────────────
+// TRIPADVISOR — JSON-LD scraper
+// ─────────────────────────────────────────
+
+async function fetchTripAdvisorReviews(location) {
+  if (!location.platform_url) return [];
+
+  try {
+    const res = await fetch(location.platform_url, { headers: SCRAPE_HEADERS });
+    if (!res.ok) { console.error('[TA SYNC] HTTP', res.status); return []; }
+    const html = await res.text();
+
+    const reviews = extractJsonLdReviews(html);
+
+    // Fallback: recherche dans les données embarquées JS
+    if (reviews.length === 0) {
+      const contextMatch = html.match(/"rating":(\d+),"text":"([^"]+)","username":"([^"]+)"/g);
+      if (contextMatch) {
+        for (const m of contextMatch.slice(0, 20)) {
+          const parts = m.match(/"rating":(\d+),"text":"([^"]+)","username":"([^"]+)"/);
+          if (parts) reviews.push({ stars: Math.min(5, parseInt(parts[1])), text: parts[2].replace(/\\n/g, ' '), author: parts[3] });
+        }
+      }
+    }
+
+    return storeScrapedReviews(reviews, location, 'ta');
+  } catch(e) {
+    console.error('[TA SYNC]', e.message);
+    return [];
+  }
+}
+
+// ─────────────────────────────────────────
+// FACEBOOK — Graph API
+// ─────────────────────────────────────────
+
+async function fetchFacebookReviews(location) {
+  if (!location.access_token) return [];
+
+  // Extraire l'ID ou le nom de la page depuis l'URL
+  let pageId = null;
+  if (location.platform_url) {
+    const match = location.platform_url.match(/facebook\.com\/(?:pages\/[^/]+\/(\d+)|([^/?#]+))/i);
+    pageId = match ? (match[1] || match[2]) : null;
+  }
+  if (!pageId) { console.error('[FB SYNC] Impossible d\'extraire l\'ID de la page'); return []; }
+
+  try {
+    const res = await fetch(
+      `https://graph.facebook.com/v18.0/${pageId}/ratings?fields=reviewer,rating,review_text,created_time&limit=50&access_token=${location.access_token}`
+    );
+    if (!res.ok) { console.error('[FB SYNC] HTTP', res.status); return []; }
+    const data = await res.json();
+
+    if (data.error) { console.error('[FB SYNC]', data.error.message); return []; }
+
+    const newReviews = [];
+    for (const review of (data.data || [])) {
+      const reviewId = `fb_${review.id || hashStr(review.created_time + review.reviewer?.id)}`;
+      const existing = db.prepare('SELECT id FROM reviews WHERE google_review_id = ?').get(reviewId);
+      if (existing) continue;
+
+      const inserted = db.prepare(
+        'INSERT INTO reviews (location_id, google_review_id, reviewer_name, star_rating, comment, status) VALUES (?, ?, ?, ?, ?, ?)'
+      ).run(location.id, reviewId, review.reviewer?.name || 'Anonyme', review.rating || 5, review.review_text || '', 'new');
+      newReviews.push({ id: inserted.lastInsertRowid, reviewer_name: review.reviewer?.name || 'Anonyme', star_rating: review.rating || 5, comment: review.review_text || '', location_id: location.id });
+    }
+
+    console.log(`[FB SYNC] ${location.business_name}: ${newReviews.length} nouveaux avis`);
+    return newReviews;
+  } catch(e) {
+    console.error('[FB SYNC]', e.message);
+    return [];
+  }
+}
+
+// ─────────────────────────────────────────
+// PAGES JAUNES — JSON-LD scraper
+// ─────────────────────────────────────────
+
+async function fetchPagesJaunesReviews(location) {
+  if (!location.platform_url) return [];
+
+  try {
+    const res = await fetch(location.platform_url, { headers: SCRAPE_HEADERS });
+    if (!res.ok) { console.error('[PJ SYNC] HTTP', res.status); return []; }
+    const html = await res.text();
+
+    const reviews = extractJsonLdReviews(html);
+
+    // Fallback spécifique Pages Jaunes
+    if (reviews.length === 0) {
+      const reviewBlocks = html.match(/class="[^"]*avis[^"]*"[\s\S]{0,500}?/gi) || [];
+      const ratingMatch = html.match(/"ratingValue"\s*:\s*"?([\d.]+)"?/g) || [];
+      const authorMatch = html.match(/"author"\s*:\s*\{[^}]*"name"\s*:\s*"([^"]+)"/g) || [];
+      const textMatch   = html.match(/"reviewBody"\s*:\s*"([^"]+)"/g) || [];
+
+      for (let i = 0; i < Math.min(textMatch.length, 20); i++) {
+        const text   = (textMatch[i]?.match(/"reviewBody"\s*:\s*"([^"]+)"/) || [])[1] || '';
+        const author = (authorMatch[i]?.match(/"name"\s*:\s*"([^"]+)"/) || [])[1] || 'Anonyme';
+        const rating = (ratingMatch[i]?.match(/([\d.]+)/) || [])[1] || '4';
+        if (text) reviews.push({ stars: Math.round(parseFloat(rating)), author, text });
+      }
+    }
+
+    return storeScrapedReviews(reviews, location, 'pj');
+  } catch(e) {
+    console.error('[PJ SYNC]', e.message);
+    return [];
+  }
+}
+
+// ─────────────────────────────────────────
+// THEFORK / LAFOURCHETTE — JSON-LD scraper
+// ─────────────────────────────────────────
+
+async function fetchTheForkReviews(location) {
+  if (!location.platform_url) return [];
+
+  try {
+    const res = await fetch(location.platform_url, { headers: SCRAPE_HEADERS });
+    if (!res.ok) { console.error('[TF SYNC] HTTP', res.status); return []; }
+    const html = await res.text();
+
+    const reviews = extractJsonLdReviews(html);
+
+    // Fallback spécifique TheFork
+    if (reviews.length === 0) {
+      const textMatches   = [...html.matchAll(/"reviewBody"\s*:\s*"([^"]{10,})"/g)];
+      const ratingMatches = [...html.matchAll(/"ratingValue"\s*:\s*(\d+(?:\.\d+)?)/g)];
+      const authorMatches = [...html.matchAll(/"author"\s*[:{]\s*(?:\{[^}]*"name"\s*:\s*"([^"]+)")?/g)];
+
+      for (let i = 0; i < Math.min(textMatches.length, 20); i++) {
+        reviews.push({
+          text:   textMatches[i][1].replace(/\\n/g, ' '),
+          stars:  Math.round(parseFloat(ratingMatches[i]?.[1] || 4)),
+          author: authorMatches[i]?.[1] || 'Anonyme'
+        });
+      }
+    }
+
+    return storeScrapedReviews(reviews, location, 'tf');
+  } catch(e) {
+    console.error('[TF SYNC]', e.message);
+    return [];
+  }
+}
+
+// ─────────────────────────────────────────
+// BOOKING.COM — Scraper
+// ─────────────────────────────────────────
+
+async function fetchBookingReviews(location) {
+  if (!location.platform_url) return [];
+
+  try {
+    // Booking.com utilise Cloudflare — on tente quand même
+    const res = await fetch(location.platform_url, {
+      headers: { ...SCRAPE_HEADERS, 'Referer': 'https://www.google.com/' }
+    });
+    if (!res.ok) { console.error('[BK SYNC] HTTP', res.status, '(Cloudflare probable)'); return []; }
+    const html = await res.text();
+
+    const reviews = extractJsonLdReviews(html);
+
+    // Fallback Booking spécifique
+    if (reviews.length === 0) {
+      const scores   = [...html.matchAll(/data-review-score="([\d.]+)"/g)];
+      const texts    = [...html.matchAll(/class="[^"]*c-review__body[^"]*"[^>]*>([^<]{20,})</g)];
+      const authors  = [...html.matchAll(/class="[^"]*bui-avatar-block__title[^"]*"[^>]*>([^<]+)</g)];
+
+      for (let i = 0; i < Math.min(texts.length, 20); i++) {
+        const score = parseFloat(scores[i]?.[1] || 8) / 2; // Booking sur 10, convertir sur 5
+        reviews.push({
+          stars:  Math.min(5, Math.max(1, Math.round(score))),
+          text:   texts[i][1].trim(),
+          author: authors[i]?.[1]?.trim() || 'Anonyme'
+        });
+      }
+    }
+
+    return storeScrapedReviews(reviews, location, 'bk');
+  } catch(e) {
+    console.error('[BK SYNC]', e.message);
+    return [];
+  }
+}
+
+// ─────────────────────────────────────────
+// AIRBNB — Scraper (limité, SPA React)
+// ─────────────────────────────────────────
+
+async function fetchAirbnbReviews(location) {
+  if (!location.platform_url) return [];
+
+  try {
+    const res = await fetch(location.platform_url, { headers: SCRAPE_HEADERS });
+    if (!res.ok) { console.error('[AB SYNC] HTTP', res.status); return []; }
+    const html = await res.text();
+
+    // Airbnb injecte parfois les données dans __NEXT_DATA__
+    const nextDataMatch = html.match(/<script id="__NEXT_DATA__" type="application\/json">([\s\S]*?)<\/script>/);
+    if (nextDataMatch) {
+      try {
+        const nextData = JSON.parse(nextDataMatch[1]);
+        const reviews = [];
+
+        // Chercher les avis dans la structure profonde
+        const findReviews = (obj, depth = 0) => {
+          if (depth > 10 || !obj || typeof obj !== 'object') return;
+          if (obj.comments && obj.reviewerName) {
+            reviews.push({ stars: obj.rating || 5, text: obj.comments, author: obj.reviewerName });
+            return;
+          }
+          for (const val of Object.values(obj)) {
+            if (Array.isArray(val)) val.forEach(v => findReviews(v, depth + 1));
+            else if (typeof val === 'object') findReviews(val, depth + 1);
+          }
+        };
+        findReviews(nextData);
+
+        if (reviews.length > 0) return storeScrapedReviews(reviews.slice(0, 30), location, 'ab');
+      } catch(e) {}
+    }
+
+    // JSON-LD fallback
+    const reviews = extractJsonLdReviews(html);
+    return storeScrapedReviews(reviews, location, 'ab');
+  } catch(e) {
+    console.error('[AB SYNC]', e.message);
+    return [];
+  }
+}
+
+// ─────────────────────────────────────────
+// AVIS VÉRIFIÉS — Scraper + widget API
+// ─────────────────────────────────────────
+
+async function fetchAvisVerifiesReviews(location) {
+  if (!location.platform_url) return [];
+
+  try {
+    // D'abord essayer le scraping de la page publique
+    const res = await fetch(location.platform_url, { headers: SCRAPE_HEADERS });
+    if (!res.ok) { console.error('[AV SYNC] HTTP', res.status); return []; }
+    const html = await res.text();
+
+    const reviews = extractJsonLdReviews(html);
+
+    // Fallback spécifique Avis Vérifiés
+    if (reviews.length === 0) {
+      // Extraire siteId depuis la page
+      const siteIdMatch = html.match(/siteId['":\s]+['"]?(\d+)['"]?/i);
+      if (siteIdMatch) {
+        const siteId = siteIdMatch[1];
+        try {
+          const apiRes = await fetch(
+            `https://cl.avis-verifies.com/fr/cache/${siteId}/cachewidgets/getwidgetsreviews.php?nbavis=50&page=1`,
+            { headers: { 'Referer': location.platform_url } }
+          );
+          if (apiRes.ok) {
+            const apiData = await apiRes.json();
+            const apiReviews = (apiData.reviews || apiData.avis || []).map(r => ({
+              stars: Math.round(parseFloat(r.note || r.rate || r.rating || 4)),
+              text:  r.review || r.avis || r.comment || '',
+              author: r.firstname || r.prenom || r.author || 'Anonyme'
+            })).filter(r => r.text);
+            return storeScrapedReviews(apiReviews, location, 'av');
+          }
+        } catch(e2) {}
+      }
+
+      // Regex fallback
+      const textMatches   = [...html.matchAll(/class="[^"]*review[^"]*"[^>]*>\s*<p[^>]*>([^<]{20,})<\/p>/gi)];
+      const ratingMatches = [...html.matchAll(/class="[^"]*rating[^"]*"[^>]*data-score="([\d.]+)"/gi)];
+      const authorMatches = [...html.matchAll(/class="[^"]*author[^"]*"[^>]*>([^<]+)</gi)];
+
+      for (let i = 0; i < Math.min(textMatches.length, 20); i++) {
+        reviews.push({
+          text:   textMatches[i][1].trim(),
+          stars:  Math.round(parseFloat(ratingMatches[i]?.[1] || 4)),
+          author: authorMatches[i]?.[1]?.trim() || 'Anonyme'
+        });
+      }
+    }
+
+    return storeScrapedReviews(reviews, location, 'av');
+  } catch(e) {
+    console.error('[AV SYNC]', e.message);
+    return [];
+  }
+}
+
+// ─────────────────────────────────────────
+// AMAZON — Scraper page avis produit
+// ─────────────────────────────────────────
+
+async function fetchAmazonReviews(location) {
+  if (!location.platform_url) return [];
+
+  try {
+    // Amazon bloque souvent les requêtes non-navigateur
+    const res = await fetch(location.platform_url, {
+      headers: {
+        ...SCRAPE_HEADERS,
+        'Accept-Encoding': 'gzip, deflate',
+        'Connection': 'keep-alive'
+      }
+    });
+    if (!res.ok) { console.error('[AZ SYNC] HTTP', res.status); return []; }
+    const html = await res.text();
+
+    const reviews = [];
+
+    // Amazon Reviews page structure
+    const reviewBlocks = [...html.matchAll(/data-hook="review-body"[\s\S]*?<span[^>]*>([\s\S]*?)<\/span>/g)];
+    const ratingBlocks = [...html.matchAll(/data-hook="review-star-rating"[\s\S]*?class="[^"]*">([\d.,]+) sur/g)];
+    const authorBlocks = [...html.matchAll(/class="a-profile-name"[^>]*>([^<]+)</g)];
+
+    for (let i = 0; i < Math.min(reviewBlocks.length, 20); i++) {
+      const text = reviewBlocks[i][1].replace(/<[^>]+>/g, '').trim();
+      if (!text) continue;
+      const ratingStr = ratingBlocks[i]?.[1]?.replace(',', '.') || '4';
+      reviews.push({
+        text,
+        stars:  Math.min(5, Math.max(1, Math.round(parseFloat(ratingStr)))),
+        author: authorBlocks[i]?.[1]?.trim() || 'Anonyme'
+      });
+    }
+
+    // JSON-LD fallback
+    if (reviews.length === 0) {
+      const ldReviews = extractJsonLdReviews(html);
+      reviews.push(...ldReviews);
+    }
+
+    return storeScrapedReviews(reviews, location, 'az');
+  } catch(e) {
+    console.error('[AZ SYNC]', e.message);
+    return [];
   }
 }
 
@@ -799,7 +1331,7 @@ async function runAutoResponder() {
     SELECT l.*, u.groq_key
     FROM locations l
     JOIN users u ON l.user_id = u.id
-    WHERE l.active = 1 AND l.refresh_token IS NOT NULL AND l.refresh_token != ''
+    WHERE l.active = 1
   `).all();
 
   for (const location of activeLocations) {
@@ -809,7 +1341,6 @@ async function runAutoResponder() {
       console.log(`[CRON] ${newReviews.length} nouvel(s) avis pour ${location.business_name}`);
     }
 
-    // Auto-réponse si activée ET clé Groq configurée
     if (location.auto_respond && location.groq_key && newReviews.length > 0) {
       for (const review of newReviews) {
         try {
@@ -819,8 +1350,18 @@ async function runAutoResponder() {
           const response = await generateResponse(mergedReview, location.groq_key);
           db.prepare('UPDATE reviews SET generated_response = ? WHERE id = ?').run(response, review.id);
 
-          await postGoogleReply(mergedReview, response);
-          db.prepare('UPDATE reviews SET status = ?, responded_at = CURRENT_TIMESTAMP WHERE id = ?').run('posted', review.id);
+          // Poster uniquement sur Google et Trustpilot (API disponibles)
+          const name = location.google_location_name || '';
+          if (name.startsWith('tp_')) {
+            await postTrustpilotReply(mergedReview, review.google_review_id, response);
+            db.prepare('UPDATE reviews SET status = ?, responded_at = CURRENT_TIMESTAMP WHERE id = ?').run('posted', review.id);
+          } else if (!name.startsWith('ta_') && !name.startsWith('fb_') && !name.startsWith('pj_') && !name.startsWith('tf_') && !name.startsWith('bk_') && !name.startsWith('ab_') && !name.startsWith('av_') && !name.startsWith('az_') && location.refresh_token) {
+            await postGoogleReply(mergedReview, response);
+            db.prepare('UPDATE reviews SET status = ?, responded_at = CURRENT_TIMESTAMP WHERE id = ?').run('posted', review.id);
+          } else {
+            // Autres plateformes → généré, à poster manuellement
+            db.prepare('UPDATE reviews SET status = ? WHERE id = ?').run('generated', review.id);
+          }
 
           console.log(`[AUTO] ✅ Répondu à ${review.reviewer_name} (${review.star_rating}★) pour ${location.business_name}`);
         } catch (e) {
@@ -832,10 +1373,7 @@ async function runAutoResponder() {
   }
 }
 
-// Toutes les heures
 cron.schedule('0 * * * *', runAutoResponder);
-
-// Au démarrage, vérifier immédiatement (après 5s)
 setTimeout(runAutoResponder, 5000);
 
 // ─────────────────────────────────────────
