@@ -1129,6 +1129,245 @@ footer{background:var(--bg);border-top:1px solid var(--border);padding:52px 24px
   </div>
 </footer>
 
+<!-- ── CHATBOT COMMERCIAL ── -->
+<style>
+.chat-bubble{position:fixed;bottom:24px;left:24px;z-index:400;cursor:pointer;transition:transform .3s}
+.chat-bubble:hover{transform:scale(1.08)}
+.chat-btn{width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,#f59e0b,#f97316);display:flex;align-items:center;justify-content:center;box-shadow:0 8px 30px rgba(245,158,11,.45);position:relative;border:none;cursor:pointer}
+.chat-btn-icon{font-size:26px}
+.chat-notif{position:absolute;top:-4px;right:-4px;width:18px;height:18px;background:#ef4444;border-radius:50%;border:2px solid var(--bg);animation:blink 2s infinite;display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff;font-weight:800}
+.chat-tooltip{position:absolute;bottom:70px;left:0;background:var(--s1);border:1px solid var(--border2);border-radius:14px;padding:10px 14px;white-space:nowrap;font-size:13px;font-weight:600;color:var(--text);box-shadow:0 8px 30px rgba(0,0,0,.4);opacity:0;transform:translateY(6px);transition:all .3s;pointer-events:none}
+.chat-bubble:hover .chat-tooltip{opacity:1;transform:translateY(0)}
+
+.chat-popup{position:fixed;bottom:100px;left:24px;z-index:400;width:360px;max-height:520px;background:var(--s1);border:1px solid var(--border2);border-radius:20px;box-shadow:0 24px 80px rgba(0,0,0,.6);display:flex;flex-direction:column;overflow:hidden;transform:scale(0.92) translateY(16px);opacity:0;pointer-events:none;transition:all .3s cubic-bezier(.34,1.56,.64,1);transform-origin:bottom left}
+.chat-popup.open{transform:scale(1) translateY(0);opacity:1;pointer-events:all}
+
+.chat-header{background:linear-gradient(135deg,#12121e,#1a1a28);padding:16px 18px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border);flex-shrink:0}
+.chat-avatar{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#f59e0b,#ef4444);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;box-shadow:0 0 0 2px rgba(245,158,11,.3)}
+.chat-header-info{flex:1}
+.chat-header-name{font-size:14px;font-weight:700;color:var(--text)}
+.chat-header-status{font-size:11px;color:var(--green);display:flex;align-items:center;gap:5px}
+.chat-header-status::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--green);animation:blink 2s infinite;flex-shrink:0}
+.chat-close{background:none;border:none;color:var(--muted);cursor:pointer;font-size:20px;padding:4px;transition:color .2s;line-height:1}
+.chat-close:hover{color:var(--text)}
+
+.chat-messages{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px;min-height:220px;max-height:320px}
+.chat-messages::-webkit-scrollbar{width:4px}
+.chat-messages::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+
+.chat-msg{max-width:85%;animation:fadeInMsg .25s ease}
+@keyframes fadeInMsg{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.chat-msg.bot{align-self:flex-start}
+.chat-msg.user{align-self:flex-end}
+.chat-msg-bubble{padding:10px 14px;border-radius:14px;font-size:13.5px;line-height:1.6}
+.chat-msg.bot .chat-msg-bubble{background:var(--s2);border:1px solid var(--border);color:var(--muted3);border-bottom-left-radius:4px}
+.chat-msg.user .chat-msg-bubble{background:linear-gradient(135deg,#f59e0b,#f97316);color:#000;font-weight:600;border-bottom-right-radius:4px}
+.chat-msg-bubble a{color:var(--gold);text-decoration:underline}
+.chat-msg-bubble strong{color:var(--text)}
+
+.chat-typing{align-self:flex-start;padding:10px 14px;background:var(--s2);border:1px solid var(--border);border-radius:14px;border-bottom-left-radius:4px;display:none}
+.chat-typing span{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--muted);animation:typing-dot 1.2s infinite}
+.chat-typing span:nth-child(2){animation-delay:.2s}
+.chat-typing span:nth-child(3){animation-delay:.4s}
+@keyframes typing-dot{0%,80%,100%{transform:scale(.8);opacity:.4}40%{transform:scale(1);opacity:1}}
+
+.chat-suggestions{padding:8px 16px;display:flex;flex-wrap:wrap;gap:6px;border-top:1px solid var(--border);flex-shrink:0;background:var(--s1)}
+.chat-suggestion{background:rgba(245,158,11,.07);border:1px solid rgba(245,158,11,.2);color:var(--gold);padding:5px 12px;border-radius:100px;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;white-space:nowrap}
+.chat-suggestion:hover{background:rgba(245,158,11,.15);border-color:rgba(245,158,11,.4)}
+
+.chat-input-area{padding:12px 14px;border-top:1px solid var(--border);display:flex;gap:8px;flex-shrink:0;background:var(--s2)}
+.chat-input{flex:1;background:var(--bg);border:1px solid var(--border2);border-radius:10px;padding:9px 13px;font-size:13px;color:var(--text);outline:none;font-family:inherit;transition:border .2s;resize:none}
+.chat-input:focus{border-color:rgba(245,158,11,.4)}
+.chat-send{width:36px;height:36px;background:linear-gradient(135deg,#f59e0b,#f97316);border:none;border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s;color:#000;font-size:16px}
+.chat-send:hover{transform:scale(1.05)}
+
+@media(max-width:500px){.chat-popup{width:calc(100vw - 32px);left:16px;bottom:90px}}
+</style>
+
+<!-- Bouton bulle -->
+<div class="chat-bubble" id="chatBubble" onclick="toggleChat()">
+  <button class="chat-btn">
+    <span class="chat-btn-icon">💬</span>
+    <div class="chat-notif">1</div>
+  </button>
+  <div class="chat-tooltip">Une question ? Je suis là !</div>
+</div>
+
+<!-- Popup chat -->
+<div class="chat-popup" id="chatPopup">
+  <div class="chat-header">
+    <div class="chat-avatar">⭐</div>
+    <div class="chat-header-info">
+      <div class="chat-header-name">Alex — ReputIA</div>
+      <div class="chat-header-status">En ligne maintenant</div>
+    </div>
+    <button class="chat-close" onclick="toggleChat()">×</button>
+  </div>
+  <div class="chat-messages" id="chatMessages">
+    <div class="chat-typing" id="chatTyping">
+      <span></span><span></span><span></span>
+    </div>
+  </div>
+  <div class="chat-suggestions" id="chatSuggestions"></div>
+  <div class="chat-input-area">
+    <textarea class="chat-input" id="chatInput" placeholder="Votre question..." rows="1" onkeydown="handleChatKey(event)"></textarea>
+    <button class="chat-send" onclick="sendUserMessage()">➤</button>
+  </div>
+</div>
+
+<script>
+// ── AGENT COMMERCIAL REPUTIA ──
+const BOT_NAME = 'Alex';
+const STRIPE_URL = 'https://reputia.onrender.com?signup=1';
+
+const KB = [
+  // Prix
+  { k:['prix','coût','coute','tarif','combien','29','cher','payer','abonnement'], r:`ReputIA coûte <strong>29€/mois TTC</strong> par établissement — sans engagement, annulation en 1 clic. 😊<br><br>Et le meilleur : tu commences par <strong>7 jours gratuits</strong> sur Google My Business, sans carte bancaire. Si tu ne vois pas de valeur, tu ne paies rien.` },
+  // Essai gratuit
+  { k:['essai','gratuit','test','tester','essayer','7 jours','sans carte'], r:`L'essai dure <strong>7 jours</strong>, c'est 100% gratuit et sans carte bancaire requise. ✅<br><br>Pendant ces 7 jours, ReputIA répond automatiquement à tes avis <strong>Google My Business</strong>. Tu verras les résultats dès les premières heures.<br><br><a href="${STRIPE_URL}">👉 Démarrer maintenant</a>` },
+  // Plateformes
+  { k:['plateforme','google','trustpilot','tripadvisor','booking','airbnb','pages jaunes','thefork','yelp','avis vérifiés'], r:`ReputIA couvre <strong>12 plateformes</strong> :<br><br>✅ <strong>Auto (API) :</strong> Google My Business, Trustpilot<br>⚡ <strong>Semi-auto :</strong> TripAdvisor, Booking, Airbnb, Pages Jaunes, TheFork, Yelp, Avis Vérifiés…<br><br>L'essai gratuit couvre Google. L'abonnement débloque tout.` },
+  // Comment ça marche
+  { k:['comment','fonctionne','marche','automatique','configurer','connecter','setup','installation'], r:`C'est ultra simple — <strong>5 minutes top chrono</strong> :<br><br>1️⃣ Tu crées ton compte<br>2️⃣ Tu connectes Google My Business (1 clic OAuth)<br>3️⃣ Tu choisis ton ton (chaleureux, pro, décontracté…)<br>4️⃣ <strong>ReputIA répond à ta place 24h/24</strong> ✅<br><br>Aucune compétence technique requise.` },
+  // Qualité réponses
+  { k:['qualité','bon','bien','naturel','humain','personnalisé','ton','style','réponse','génère'], r:`Les réponses sont générées par une IA entraînée sur des <strong>milliers de réponses professionnelles</strong>. Elles sont adaptées à :<br><br>• Le contenu exact de l'avis<br>• Ton ton choisi (4 styles disponibles)<br>• Ton secteur d'activité<br><br>Les avis négatifs sont gérés avec <strong>tact et empathie</strong>. Tes clients ne voient pas la différence avec une réponse humaine.` },
+  // Rapidité
+  { k:['rapide','vitesse','délai','temps','60','secondes','combien de temps'], r:`ReputIA surveille tes plateformes <strong>toutes les heures</strong>. Dès qu'un avis est détecté, la réponse est générée et publiée en <strong>moins de 60 secondes</strong>. ⚡<br><br>Même à 3h du matin, le dimanche, tes avis sont répondus.` },
+  // Sécurité / confiance
+  { k:['sécur','confiance','données','rgpd','fiable','sûr','risque'], r:`ReputIA est <strong>100% conforme RGPD</strong> 🇫🇷<br><br>• Tes données ne sont jamais revendues<br>• Tu gardes le contrôle total (mode validation manuelle disponible)<br>• Hébergement sécurisé SSL<br>• Tu peux supprimer ton compte et tes données à tout moment` },
+  // Annulation
+  { k:['annuler','annulation','résilier','résiliation','engag','quitter','stopper','arrêter'], r:`Zéro engagement. Tu peux annuler <strong>en 1 clic</strong> depuis ton espace client, à tout moment. Aucune question posée, aucune pénalité. 😌<br><br>Et si tu n'es pas satisfait dans les 30 jours, on te rembourse intégralement.` },
+  // Plusieurs établissements
+  { k:['plusieurs','multi','établissement','resto','hôtel','réseau','franchise','groupe'], r:`Chaque établissement = <strong>29€/mois</strong> avec son propre tableau de bord.<br><br>Tu gères tout depuis <strong>un seul compte</strong>. Et à partir de 3 établissements, contacte-nous pour un <strong>tarif dégressif</strong>. 📩 contact@reputia.fr` },
+  // Remboursement
+  { k:['rembours','garantie','satisfait','insatisfait'], r:`<strong>Garantie satisfait ou remboursé 30 jours.</strong> 🛡️<br><br>Si tu n'es pas convaincu dans le premier mois, on te rembourse sans question posée. Aucun risque financier.` },
+  // Avis négatifs
+  { k:['négatif','mauvais','1 étoile','2 étoile','critique','plainte','mécontent'], r:`Les avis négatifs sont justement là où ReputIA brille le plus. 💪<br><br>L'IA génère des réponses <strong>empathiques et professionnelles</strong> qui montrent que tu prends en compte le retour. Les études montrent que <strong>répondre aux négatifs augmente ta note globale</strong> et rassure les futurs clients.` },
+  // Support
+  { k:['support','aide','question','contact','email','joindre','parler'], r:`Notre support est <strong>100% français</strong> 🇫🇷, disponible par email : <a href="mailto:contact@reputia.fr">contact@reputia.fr</a><br><br>Réponse sous 24h en semaine. Pendant l'essai, on est particulièrement disponibles pour t'accompagner.` },
+  // Démo
+  { k:['démo','demo','voir','exemple','aperçu','screenshot'], r:`Tu peux voir ReputIA en action directement sur cette page — <strong>fais défiler vers la section "Démo en direct"</strong> ⬇️<br><br>Ou encore mieux : <a href="${STRIPE_URL}">démarre l'essai gratuit</a> et vois tes vrais avis répondus en live dans l'heure !` },
+  // Concurrent
+  { k:['concurrent','comparaison','autre','birdeye','podium','review','reputeasy'], r:`Les concurrents comme Birdeye ou Podium coûtent <strong>200 à 500€/mois</strong>. ReputIA c'est <strong>29€/mois</strong> avec les mêmes fonctionnalités essentielles.<br><br>Et notre avantage : interface en français, support français, et conçu pour les PME, pas pour les grandes entreprises.` },
+  // CTA final
+  { k:['oui','ok','je veux','démarrer','commencer','intéressé','go','allons-y','lancez','lancer'], r:`Super ! 🎉 Clique sur ce lien pour créer ton compte en 2 minutes :<br><br><a href="${STRIPE_URL}" style="display:inline-block;background:linear-gradient(135deg,#f59e0b,#f97316);color:#000;font-weight:800;padding:10px 20px;border-radius:8px;text-decoration:none;margin-top:6px">🚀 Démarrer mon essai gratuit →</a><br><br>Tu reçois un email de bienvenue avec le guide complet.` },
+];
+
+const SUGGESTIONS = [
+  ['💰 Prix ?', 'prix'],
+  ['🎁 Essai gratuit ?', 'essai gratuit'],
+  ['⚙️ Comment ça marche ?', 'comment ça marche'],
+  ['🌐 Plateformes ?', 'plateformes'],
+  ['❌ Annulation ?', 'annulation'],
+];
+
+const FALLBACK = [
+  `Bonne question ! Pour y répondre précisément, je te recommande de <a href="mailto:contact@reputia.fr">contacter notre équipe</a> — on répond sous 24h. 😊`,
+  `Je ne suis pas sûr de bien comprendre. Tu peux reformuler ? Ou <a href="${STRIPE_URL}">tester ReputIA gratuitement</a> pour voir par toi-même !`,
+  `Pour cette question spécifique, le mieux c'est de <a href="mailto:contact@reputia.fr">nous écrire directement</a>. En attendant, <a href="${STRIPE_URL}">l'essai gratuit 7 jours</a> te donnera toutes les réponses en pratique ! 🚀`,
+];
+
+let chatOpen = false;
+let messageHistory = [];
+let fallbackIdx = 0;
+
+function toggleChat() {
+  chatOpen = !chatOpen;
+  document.getElementById('chatPopup').classList.toggle('open', chatOpen);
+  document.getElementById('chatBubble').querySelector('.chat-notif').style.display = 'none';
+  if (chatOpen && messageHistory.length === 0) {
+    setTimeout(() => botTypeThenSay(`Bonjour ! 👋 Je suis <strong>${BOT_NAME}</strong>, l'assistant ReputIA.<br><br>Je peux répondre à toutes tes questions sur le service. Qu'est-ce qui t'intéresse ?`, SUGGESTIONS), 600);
+  }
+  if (chatOpen) setTimeout(() => document.getElementById('chatInput').focus(), 300);
+}
+
+function showSuggestions(suggs) {
+  const el = document.getElementById('chatSuggestions');
+  el.innerHTML = '';
+  if (!suggs || !suggs.length) return;
+  suggs.forEach(([label, query]) => {
+    const btn = document.createElement('button');
+    btn.className = 'chat-suggestion';
+    btn.textContent = label;
+    btn.onclick = () => { sendUserMessage(query); };
+    el.appendChild(btn);
+  });
+}
+
+function addMessage(type, html) {
+  const typing = document.getElementById('chatTyping');
+  const container = document.getElementById('chatMessages');
+  const div = document.createElement('div');
+  div.className = `chat-msg ${type}`;
+  div.innerHTML = `<div class="chat-msg-bubble">${html}</div>`;
+  container.insertBefore(div, typing);
+  container.scrollTop = container.scrollHeight;
+}
+
+function botTypeThenSay(html, suggs) {
+  const typing = document.getElementById('chatTyping');
+  typing.style.display = 'flex';
+  document.getElementById('chatMessages').scrollTop = 99999;
+  setTimeout(() => {
+    typing.style.display = 'none';
+    addMessage('bot', html);
+    showSuggestions(suggs || []);
+  }, 900 + Math.random() * 400);
+}
+
+function findResponse(text) {
+  const t = text.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  for (const entry of KB) {
+    if (entry.k.some(k => t.includes(k.normalize('NFD').replace(/[̀-ͯ]/g, '')))) {
+      return entry.r;
+    }
+  }
+  return null;
+}
+
+function sendUserMessage(text) {
+  const input = document.getElementById('chatInput');
+  const msg = (text || input.value).trim();
+  if (!msg) return;
+  input.value = '';
+  input.style.height = 'auto';
+  showSuggestions([]);
+  addMessage('user', msg);
+  messageHistory.push(msg);
+
+  const response = findResponse(msg);
+  if (response) {
+    botTypeThenSay(response, [['💰 Prix ?', 'prix'], ['🚀 Démarrer', 'je veux démarrer']]);
+  } else {
+    botTypeThenSay(FALLBACK[fallbackIdx % FALLBACK.length]);
+    fallbackIdx++;
+  }
+}
+
+function handleChatKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendUserMessage();
+  }
+}
+
+// Auto-resize textarea
+document.getElementById('chatInput').addEventListener('input', function() {
+  this.style.height = 'auto';
+  this.style.height = Math.min(this.scrollHeight, 80) + 'px';
+});
+
+// Ouvre le chat automatiquement après 25 secondes (1ère visite)
+if (!sessionStorage.getItem('chatSeen')) {
+  setTimeout(() => {
+    if (!chatOpen) {
+      toggleChat();
+      sessionStorage.setItem('chatSeen', '1');
+    }
+  }, 25000);
+}
+</script>
+
 <!-- FLOATING CTA -->
 <div class="floating-cta" id="floatingCta">
   <a href="https://reputia.onrender.com?signup=1" class="floating-btn">

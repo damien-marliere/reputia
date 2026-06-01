@@ -983,11 +983,11 @@ app.post('/api/reviews/:id/generate', requireAuth, async (req, res) => {
 
   if (!review) return res.status(404).json({ error: 'Avis non trouvé' });
 
-  const user = db.prepare('SELECT groq_key FROM users WHERE id = ?').get(req.session.userId);
-  if (!user.groq_key) return res.json({ error: 'Clé Groq non configurée dans les paramètres' });
+  const groqKey = process.env.GROQ_API_KEY;
+  if (!groqKey) return res.json({ error: 'Service IA temporairement indisponible' });
 
   try {
-    const response = await generateResponse(review, user.groq_key);
+    const response = await generateResponse(review, groqKey);
     db.prepare('UPDATE reviews SET generated_response = ?, status = ? WHERE id = ?').run(response, 'generated', review.id);
     res.json({ ok: true, response });
   } catch (e) {
@@ -2332,12 +2332,12 @@ async function triggerFullBackfill(userId) {
     const reviews = await fetchAllGoogleReviewsPaginated(loc);
     total += reviews.length;
     // Générer et poster les réponses immédiatement
-    if (loc.auto_respond && loc.groq_key && reviews.length > 0) {
+    if (loc.auto_respond && process.env.GROQ_API_KEY && reviews.length > 0) {
       for (const review of reviews) {
         try {
           const dbReview = db.prepare('SELECT * FROM reviews WHERE id = ?').get(review.id);
           const merged = { ...dbReview, ...loc };
-          const response = await generateResponse(merged, loc.groq_key);
+          const response = await generateResponse(merged, process.env.GROQ_API_KEY);
           db.prepare('UPDATE reviews SET generated_response = ? WHERE id = ?').run(response, review.id);
           await postGoogleReply(merged, response);
           db.prepare('UPDATE reviews SET status = ?, responded_at = CURRENT_TIMESTAMP WHERE id = ?').run('posted', review.id);
@@ -2431,13 +2431,13 @@ async function runAutoResponder() {
       console.log(`[CRON] ${newReviews.length} nouvel(s) avis pour ${location.business_name}`);
     }
 
-    if (location.auto_respond && location.groq_key && newReviews.length > 0) {
+    if (location.auto_respond && process.env.GROQ_API_KEY && newReviews.length > 0) {
       for (const review of newReviews) {
         try {
           const dbReview = db.prepare('SELECT * FROM reviews WHERE id = ?').get(review.id);
           const mergedReview = { ...dbReview, ...location };
 
-          const response = await generateResponse(mergedReview, location.groq_key);
+          const response = await generateResponse(mergedReview, process.env.GROQ_API_KEY);
           db.prepare('UPDATE reviews SET generated_response = ? WHERE id = ?').run(response, review.id);
 
           // Poster uniquement sur Google et Trustpilot (API disponibles)
