@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ReputIA — Réponses automatiques aux avis Google · €29/mois</title>
+<meta name="description" content="ReputIA répond automatiquement à tous vos avis Google en français. Boostez votre référencement local sans lever le petit doigt. Essai gratuit 14 jours.">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0a0f;--s1:#111118;--s2:#1a1a24;--s3:#252532;
+  --border:#2a2a3a;--accent:#f59e0b;--accent2:#ef4444;
+  --text:#f0f0f5;--muted:#8b8ba0;--green:#22c55e;--blue:#3b82f6;
+  --gold:#f59e0b;
+}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;line-height:1.6}
+
+/* ── NAV ── */
+nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(10,10,15,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:14px 24px;display:flex;align-items:center;justify-content:space-between}
+.nav-logo{display:flex;align-items:center;gap:10px;font-size:18px;font-weight:800;color:var(--text);text-decoration:none}
+.logo-star{font-size:22px}
+.nav-cta{background:var(--gold);color:#000;padding:9px 22px;border-radius:8px;font-weight:700;font-size:14px;text-decoration:none;transition:all .2s}
+.nav-cta:hover{filter:brightness(1.1);transform:translateY(-1px)}
+
+/* ── HERO ── */
+.hero{min-height:100vh;display:flex;align-items:center;justify-content:center;text-align:center;padding:100px 24px 60px;position:relative;overflow:hidden}
+.hero-glow{position:absolute;top:20%;left:50%;transform:translateX(-50%);width:600px;height:400px;background:radial-gradient(ellipse,rgba(245,158,11,.12) 0%,transparent 70%);pointer-events:none}
+.hero-badge{display:inline-flex;align-items:center;gap:7px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.25);border-radius:20px;padding:6px 14px;font-size:13px;color:var(--gold);font-weight:600;margin-bottom:24px}
+.hero-badge span{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+h1{font-size:clamp(36px,6vw,68px);font-weight:900;line-height:1.1;margin-bottom:20px;letter-spacing:-1.5px}
+h1 em{font-style:normal;background:linear-gradient(135deg,var(--gold),#fb923c);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hero-sub{font-size:clamp(16px,2.5vw,20px);color:var(--muted);max-width:640px;margin:0 auto 36px;line-height:1.6}
+.hero-sub strong{color:var(--text)}
+.hero-btns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:48px}
+.btn-primary{background:var(--gold);color:#000;padding:16px 32px;border-radius:10px;font-weight:800;font-size:16px;text-decoration:none;transition:all .2s;display:inline-flex;align-items:center;gap:8px}
+.btn-primary:hover{filter:brightness(1.1);transform:translateY(-2px);box-shadow:0 12px 40px rgba(245,158,11,.3)}
+.btn-ghost{background:transparent;color:var(--text);padding:16px 28px;border-radius:10px;font-weight:600;font-size:15px;text-decoration:none;border:1px solid var(--border);transition:all .2s}
+.btn-ghost:hover{border-color:var(--gold);color:var(--gold)}
+.hero-proof{display:flex;align-items:center;justify-content:center;gap:16px;flex-wrap:wrap}
+.proof-item{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:6px}
+.proof-item span{color:var(--green)}
+.proof-sep{color:var(--border)}
+
+/* ── PROBLEM ── */
+.problem{background:var(--s1);border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:80px 24px}
+.section-inner{max-width:1100px;margin:0 auto}
+.section-tag{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--gold);margin-bottom:12px}
+.section-title{font-size:clamp(26px,4vw,42px);font-weight:800;margin-bottom:16px;letter-spacing:-0.5px}
+.section-sub{font-size:16px;color:var(--muted);max-width:580px}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:20px;margin-top:48px}
+.stat-card{background:var(--s2);border:1px solid var(--border);border-radius:14px;padding:28px;text-align:center}
+.stat-num{font-size:48px;font-weight:900;color:var(--gold);line-height:1}
+.stat-label{font-size:14px;color:var(--muted);margin-top:8px;line-height:1.4}
+.problem-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-top:48px}
+.prob-card{background:var(--s2);border:1px solid rgba(239,68,68,.2);border-radius:12px;padding:22px;display:flex;gap:14px}
+.prob-icon{font-size:24px;flex-shrink:0}
+.prob-card h3{font-size:15px;font-weight:700;margin-bottom:6px;color:var(--text)}
+.prob-card p{font-size:13.5px;color:var(--muted);line-height:1.5}
+
+/* ── HOW IT WORKS ── */
+.how{padding:80px 24px}
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:24px;margin-top:48px}
+.step{background:var(--s1);border:1px solid var(--border);border-radius:14px;padding:28px;position:relative;overflow:hidden}
+.step::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--gold),#fb923c)}
+.step-num{width:36px;height:36px;background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.3);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:var(--gold);margin-bottom:16px}
+.step h3{font-size:17px;font-weight:700;margin-bottom:8px}
+.step p{font-size:13.5px;color:var(--muted);line-height:1.6}
+
+/* ── DEMO ── */
+.demo{background:var(--s1);border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:80px 24px}
+.demo-box{background:var(--s2);border:1px solid var(--border);border-radius:16px;overflow:hidden;max-width:760px;margin:40px auto 0}
+.demo-header{background:var(--s3);padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}
+.demo-dot{width:10px;height:10px;border-radius:50%}
+.demo-title{font-size:12px;color:var(--muted);margin-left:6px}
+.demo-body{padding:24px}
+.review-card{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:12px}
+.review-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.reviewer{display:flex;align-items:center;gap:10px}
+.avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#3b82f6,#8b5cf6);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:#fff;flex-shrink:0}
+.reviewer-name{font-size:14px;font-weight:600}
+.reviewer-date{font-size:11px;color:var(--muted)}
+.stars{color:var(--gold);font-size:13px;letter-spacing:1px}
+.review-text{font-size:13.5px;color:var(--muted);line-height:1.5}
+.response-card{background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.18);border-radius:10px;padding:16px;margin-top:4px}
+.response-top{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.response-badge{background:rgba(245,158,11,.15);color:var(--gold);padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700}
+.ai-tag{background:rgba(34,197,94,.12);color:var(--green);padding:2px 7px;border-radius:12px;font-size:10px;font-weight:600}
+.response-text{font-size:13px;color:var(--text);line-height:1.6}
+.response-footer{margin-top:8px;font-size:11px;color:var(--muted);display:flex;align-items:center;gap:6px}
+
+/* ── BENEFITS ── */
+.benefits{padding:80px 24px}
+.benefits-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px;margin-top:48px}
+.benefit{display:flex;gap:16px;padding:24px;background:var(--s1);border:1px solid var(--border);border-radius:12px}
+.benefit-icon{font-size:28px;flex-shrink:0}
+.benefit h3{font-size:16px;font-weight:700;margin-bottom:6px}
+.benefit p{font-size:13.5px;color:var(--muted);line-height:1.5}
+
+/* ── PRICING ── */
+.pricing{background:var(--s1);border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:80px 24px;text-align:center}
+.price-card{background:var(--bg);border:2px solid var(--gold);border-radius:20px;padding:40px;max-width:420px;margin:40px auto 0;position:relative}
+.price-popular{position:absolute;top:-14px;left:50%;transform:translateX(-50%);background:var(--gold);color:#000;padding:4px 18px;border-radius:20px;font-size:12px;font-weight:800;white-space:nowrap}
+.price-name{font-size:14px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px}
+.price-amount{font-size:64px;font-weight:900;line-height:1;margin-bottom:4px}
+.price-amount span{font-size:24px;font-weight:600;color:var(--muted)}
+.price-period{font-size:14px;color:var(--muted);margin-bottom:28px}
+.price-features{text-align:left;margin-bottom:28px;display:flex;flex-direction:column;gap:12px}
+.price-feat{display:flex;align-items:flex-start;gap:10px;font-size:14.5px}
+.price-feat .check{color:var(--green);flex-shrink:0;font-size:16px;margin-top:1px}
+.price-trial{font-size:12px;color:var(--muted);margin-top:14px}
+.price-guarantee{background:rgba(34,197,94,.07);border:1px solid rgba(34,197,94,.2);border-radius:8px;padding:12px;margin-top:16px;font-size:12.5px;color:var(--green)}
+
+/* ── PLATFORMS ── */
+.platforms{background:var(--s1);border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:70px 24px;text-align:center}
+.platforms-grid{display:flex;flex-wrap:wrap;gap:16px;justify-content:center;margin-top:40px;max-width:900px;margin-left:auto;margin-right:auto}
+.platform-card{background:var(--bg);border:1px solid var(--border);border-radius:14px;padding:22px 28px;display:flex;align-items:center;gap:14px;min-width:200px;position:relative;transition:all .2s}
+.platform-card.active{border-color:rgba(34,197,94,.35);background:rgba(34,197,94,.04)}
+.platform-card.active:hover{border-color:rgba(34,197,94,.6);transform:translateY(-2px)}
+.platform-card.soon{opacity:.7}
+.platform-logo{font-size:28px}
+.platform-info{text-align:left}
+.platform-name{font-size:15px;font-weight:700;margin-bottom:3px}
+.platform-status{font-size:12px;font-weight:600}
+.platform-card.active .platform-status{color:var(--green)}
+.platform-card.soon .platform-status{color:var(--muted)}
+.platform-badge{position:absolute;top:-10px;right:12px;background:var(--green);color:#000;font-size:10px;font-weight:800;padding:2px 8px;border-radius:10px}
+.platform-badge.soon-badge{background:var(--s3);color:var(--muted)}
+
+/* ── FAQ ── */
+.faq{padding:80px 24px}
+.faq-list{max-width:700px;margin:40px auto 0;display:flex;flex-direction:column;gap:16px}
+.faq-item{background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:22px 24px}
+.faq-item h3{font-size:16px;font-weight:700;margin-bottom:8px;color:var(--text)}
+.faq-item p{font-size:14px;color:var(--muted);line-height:1.6}
+
+/* ── CTA FINAL ── */
+.cta-final{padding:80px 24px;text-align:center;position:relative;overflow:hidden}
+.cta-glow{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:500px;height:300px;background:radial-gradient(ellipse,rgba(245,158,11,.1) 0%,transparent 70%);pointer-events:none}
+.cta-final h2{font-size:clamp(28px,4vw,48px);font-weight:900;margin-bottom:16px;letter-spacing:-0.5px}
+.cta-final p{font-size:16px;color:var(--muted);max-width:500px;margin:0 auto 32px}
+
+/* ── FOOTER ── */
+footer{background:var(--s1);border-top:1px solid var(--border);padding:28px 24px;text-align:center;font-size:13px;color:var(--muted)}
+footer a{color:var(--muted);text-decoration:none}
+footer a:hover{color:var(--gold)}
+
+/* ── RESPONSIVE ── */
+@media(max-width:640px){
+  nav{padding:12px 16px}
+  .hero-btns{flex-direction:column;align-items:center}
+  .btn-primary,.btn-ghost{width:100%;text-align:center;justify-content:center}
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="#" class="nav-logo">
+    <span class="logo-star">⭐</span>
+    <span>ReputIA</span>
+  </a>
+  <a href="#pricing" class="nav-cta">Démarrer gratuitement</a>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-glow"></div>
+  <div>
+    <div class="hero-badge">
+      <span></span>
+      Nouveau · Automatisation IA pour commerces français
+    </div>
+    <h1>Vos avis Google répondent<br><em>tout seuls</em></h1>
+    <p class="hero-sub">
+      ReputIA répond automatiquement à chaque avis Google dès qu'il arrive.
+      <strong>Vous ne faites rien. Votre réputation s'améliore. Google vous remonte.</strong>
+    </p>
+    <div class="hero-btns">
+      <a href="#pricing" class="btn-primary">
+        ⚡ Essayer gratuitement 14 jours
+      </a>
+      <a href="#demo" class="btn-ghost">Voir comment ça marche</a>
+    </div>
+    <div class="hero-proof">
+      <div class="proof-item"><span>✓</span> Aucune carte bancaire requise</div>
+      <div class="proof-sep">·</div>
+      <div class="proof-item"><span>✓</span> Installation en 5 minutes</div>
+      <div class="proof-sep">·</div>
+      <div class="proof-item"><span>✓</span> 100% automatique</div>
+      <div class="proof-sep">·</div>
+      <div class="proof-item"><span>✓</span> Réponses en français</div>
+    </div>
+  </div>
+</section>
+
+<!-- PROBLEM -->
+<section class="problem">
+  <div class="section-inner">
+    <div class="section-tag">Le problème</div>
+    <h2 class="section-title">Vous perdez des clients<br>sans le savoir</h2>
+    <p class="section-sub">Google favorise les établissements qui répondent à leurs avis. Ceux qui ne répondent pas disparaissent des résultats.</p>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-num">88%</div>
+        <div class="stat-label">des clients lisent les avis Google avant de choisir un restaurant ou commerce</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num">90%</div>
+        <div class="stat-label">des commerces français ne répondent jamais à leurs avis Google</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num">+15%</div>
+        <div class="stat-label">de conversions en plus quand un établissement répond à ses avis</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num">+🏆</div>
+        <div class="stat-label">Google booste dans les résultats les établissements qui répondent régulièrement</div>
+      </div>
+    </div>
+
+    <div class="problem-cards" style="margin-top:40px">
+      <div class="prob-card">
+        <div class="prob-icon">😩</div>
+        <div>
+          <h3>Pas le temps d'y penser</h3>
+          <p>Entre le service, les fournisseurs et la gestion, les avis Google passent toujours en dernier.</p>
+        </div>
+      </div>
+      <div class="prob-card">
+        <div class="prob-icon">😶</div>
+        <div>
+          <h3>On sait pas quoi écrire</h3>
+          <p>Répondre à un avis négatif sans s'énerver ou à un positif sans paraître robotique — c'est un art.</p>
+        </div>
+      </div>
+      <div class="prob-card">
+        <div class="prob-icon">📉</div>
+        <div>
+          <h3>Les concurrents passent devant</h3>
+          <p>Votre concurrent répond à ses avis, Google le remonte. Vous restez invisible.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="how" id="demo">
+  <div class="section-inner">
+    <div class="section-tag">Comment ça marche</div>
+    <h2 class="section-title">3 étapes. Une seule fois.<br>Ensuite c'est automatique.</h2>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <h3>Vous connectez votre Google</h3>
+        <p>Autorisez ReputIA à accéder à votre fiche Google My Business en 2 clics. On ne modifie rien d'autre.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <h3>L'IA apprend votre ton</h3>
+        <p>Décrivez votre établissement en quelques phrases. L'IA adapte le style des réponses à votre image (chaleureuse, pro, décontractée...).</p>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <h3>Chaque avis reçoit une réponse</h3>
+        <p>Dès qu'un avis arrive — positif, négatif ou neutre — ReputIA génère et publie une réponse personnalisée. Vous recevez une notification par email.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- DEMO -->
+<section class="demo">
+  <div class="section-inner" style="text-align:center">
+    <div class="section-tag">Exemple réel</div>
+    <h2 class="section-title">Ce que ça donne en pratique</h2>
+    <p style="color:var(--muted);font-size:15px;max-width:500px;margin:0 auto">ReputIA gère les positifs, les négatifs et les neutres. Chaque réponse est unique et personnalisée.</p>
+
+    <div class="demo-box">
+      <div class="demo-header">
+        <div class="demo-dot" style="background:#ef4444"></div>
+        <div class="demo-dot" style="background:#f59e0b"></div>
+        <div class="demo-dot" style="background:#22c55e"></div>
+        <span class="demo-title">Google My Business — Avis clients</span>
+      </div>
+      <div class="demo-body">
+
+        <!-- Avis positif -->
+        <div class="review-card">
+          <div class="review-top">
+            <div class="reviewer">
+              <div class="avatar">M</div>
+              <div>
+                <div class="reviewer-name">Marie L.</div>
+                <div class="reviewer-date">Il y a 2 heures</div>
+              </div>
+            </div>
+            <div class="stars">★★★★★</div>
+          </div>
+          <div class="review-text">Excellent restaurant ! Les pâtes étaient délicieuses et le service impeccable. On reviendra sans hésiter 😊</div>
+        </div>
+        <div class="response-card">
+          <div class="response-top">
+            <span class="response-badge">Réponse du propriétaire</span>
+            <span class="ai-tag">⚡ ReputIA — Automatique</span>
+          </div>
+          <div class="response-text">Merci infiniment Marie pour ce retour qui nous touche vraiment ! Nous mettons tout notre cœur dans nos recettes et c'est formidable de le voir apprécié. On vous attend avec plaisir pour votre prochaine visite ! 🍝</div>
+          <div class="response-footer">⏱ Répondu en 4 minutes · Aucune action requise</div>
+        </div>
+
+        <div style="margin-top:16px"></div>
+
+        <!-- Avis négatif -->
+        <div class="review-card">
+          <div class="review-top">
+            <div class="reviewer">
+              <div class="avatar" style="background:linear-gradient(135deg,#ef4444,#f97316)">T</div>
+              <div>
+                <div class="reviewer-name">Thomas B.</div>
+                <div class="reviewer-date">Il y a 5 heures</div>
+              </div>
+            </div>
+            <div class="stars" style="color:var(--muted)">★★☆☆☆</div>
+          </div>
+          <div class="review-text">Attente de 45 minutes pour être servi alors qu'il n'y avait pas tant de monde. Déçu de l'expérience.</div>
+        </div>
+        <div class="response-card" style="border-color:rgba(245,158,11,.2);background:rgba(245,158,11,.04)">
+          <div class="response-top">
+            <span class="response-badge">Réponse du propriétaire</span>
+            <span class="ai-tag">⚡ ReputIA — Automatique</span>
+          </div>
+          <div class="response-text">Bonjour Thomas, merci de nous avoir fait ce retour sincère. Nous sommes vraiment désolés de l'attente que vous avez vécue — ce n'est pas le service que nous voulons offrir. Nous allons analyser ce qui s'est passé ce soir-là. N'hésitez pas à nous recontacter directement, nous souhaitons vous offrir une meilleure expérience.</div>
+          <div class="response-footer">⏱ Répondu en 6 minutes · Aucune action requise</div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- BENEFITS -->
+<section class="benefits">
+  <div class="section-inner">
+    <div class="section-tag">Pourquoi ReputIA</div>
+    <h2 class="section-title">Tout ce que vous gagnez</h2>
+
+    <div class="benefits-grid">
+      <div class="benefit">
+        <div class="benefit-icon">🤖</div>
+        <div>
+          <h3>100% automatique</h3>
+          <p>Dès qu'un avis arrive, ReputIA répond. Même la nuit, le week-end, en vacances. Vous ne touchez à rien.</p>
+        </div>
+      </div>
+      <div class="benefit">
+        <div class="benefit-icon">🇫🇷</div>
+        <div>
+          <h3>Réponses en français parfait</h3>
+          <p>Conçu pour le marché français. Ton chaleureux, formules correctes, jamais robotique. Vos clients ne feront pas la différence.</p>
+        </div>
+      </div>
+      <div class="benefit">
+        <div class="benefit-icon">📈</div>
+        <div>
+          <h3>Meilleur référencement local</h3>
+          <p>Google favorise les établissements actifs. Répondre à chaque avis améliore votre position dans Google Maps et les recherches locales.</p>
+        </div>
+      </div>
+      <div class="benefit">
+        <div class="benefit-icon">😤</div>
+        <div>
+          <h3>Avis négatifs mieux gérés</h3>
+          <p>L'IA répond aux critiques avec le bon ton — professionnelle, empathique, jamais agressive. Transformez les mauvaises expériences en opportunités.</p>
+        </div>
+      </div>
+      <div class="benefit">
+        <div class="benefit-icon">⚡</div>
+        <div>
+          <h3>Réponse en moins de 10 minutes</h3>
+          <p>Google et vos clients voient que vous êtes réactif. La vitesse de réponse améliore la perception de votre service.</p>
+        </div>
+      </div>
+      <div class="benefit">
+        <div class="benefit-icon">🎯</div>
+        <div>
+          <h3>Personnalisé pour votre image</h3>
+          <p>L'IA adapte le style à votre établissement : restaurant gastronomique, bistrot sympa, boutique tendance — chaque réponse correspond à votre ADN.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section class="pricing" id="pricing">
+  <div class="section-inner">
+    <div class="section-tag">Tarif simple</div>
+    <h2 class="section-title">Un seul forfait. Tout inclus.</h2>
+    <p style="color:var(--muted);font-size:15px;max-width:480px;margin:0 auto">Moins qu'un repas au restaurant. Moins qu'une heure de community manager.</p>
+
+    <div class="price-card">
+      <div class="price-popular">⭐ Le plus populaire</div>
+      <div class="price-name">ReputIA Pro</div>
+      <div class="price-amount">29<span>€</span></div>
+      <div class="price-period">par mois · par établissement · sans engagement</div>
+
+      <div class="price-features">
+        <div class="price-feat"><span class="check">✓</span> Réponses automatiques illimitées</div>
+        <div class="price-feat"><span class="check">✓</span> Google · Trustpilot · TripAdvisor inclus</div>
+        <div class="price-feat"><span class="check">✓</span> IA adaptée à votre ton et image</div>
+        <div class="price-feat"><span class="check">✓</span> Gestion positifs + négatifs + neutres</div>
+        <div class="price-feat"><span class="check">✓</span> Notification email à chaque réponse</div>
+        <div class="price-feat"><span class="check">✓</span> Tableau de bord de vos avis</div>
+        <div class="price-feat"><span class="check">✓</span> Support en français</div>
+        <div class="price-feat"><span class="check">✓</span> Annulation à tout moment</div>
+      </div>
+
+      <a href="https://buy.stripe.com/VOTRE_LIEN_ICI" class="btn-primary" style="width:100%;justify-content:center;font-size:15px">
+        ⚡ Démarrer l'essai gratuit 14 jours
+      </a>
+      <div class="price-trial">Aucune carte bancaire requise pour l'essai</div>
+      <div class="price-guarantee">🛡️ Satisfait ou remboursé 30 jours — sans question</div>
+    </div>
+  </div>
+</section>
+
+<!-- PLATFORMS -->
+<section class="platforms">
+  <div class="section-inner">
+    <div class="section-tag">Plateformes connectées</div>
+    <h2 class="section-title">Tous vos avis. Un seul outil.</h2>
+    <p style="color:var(--muted);font-size:15px;max-width:560px;margin:0 auto">ReputIA centralise et répond automatiquement à vos avis sur toutes les plateformes qui comptent pour votre activité.</p>
+
+    <!-- ACTIVES -->
+    <p style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:var(--green);margin-top:40px;margin-bottom:14px">✓ Disponibles maintenant</p>
+    <div class="platforms-grid" style="margin-top:0">
+
+      <div class="platform-card active">
+        <div class="platform-badge">✓ Actif</div>
+        <div class="platform-logo">🔍</div>
+        <div class="platform-info">
+          <div class="platform-name">Google My Business</div>
+          <div class="platform-status">✓ Disponible maintenant</div>
+        </div>
+      </div>
+
+      <div class="platform-card active">
+        <div class="platform-badge">✓ Actif</div>
+        <div class="platform-logo">⭐</div>
+        <div class="platform-info">
+          <div class="platform-name">Trustpilot</div>
+          <div class="platform-status">✓ Disponible maintenant</div>
+        </div>
+      </div>
+
+      <div class="platform-card active">
+        <div class="platform-badge">✓ Actif</div>
+        <div class="platform-logo">🧭</div>
+        <div class="platform-info">
+          <div class="platform-name">TripAdvisor</div>
+          <div class="platform-status">✓ Disponible maintenant</div>
+        </div>
+      </div>
+
+      <div class="platform-card active">
+        <div class="platform-badge">✓ Actif</div>
+        <div class="platform-logo">📘</div>
+        <div class="platform-info">
+          <div class="platform-name">Facebook</div>
+          <div class="platform-status">✓ Disponible maintenant</div>
+        </div>
+      </div>
+
+      <div class="platform-card active">
+        <div class="platform-badge">✓ Actif</div>
+        <div class="platform-logo">📒</div>
+        <div class="platform-info">
+          <div class="platform-name">Pages Jaunes</div>
+          <div class="platform-status">✓ Disponible maintenant</div>
+        </div>
+      </div>
+
+      <div class="platform-card active">
+        <div class="platform-badge">✓ Actif</div>
+        <div class="platform-logo">🍴</div>
+        <div class="platform-info">
+          <div class="platform-name">TheFork / LaFourchette</div>
+          <div class="platform-status">✓ Disponible maintenant</div>
+        </div>
+      </div>
+
+      <div class="platform-card active">
+        <div class="platform-badge">✓ Actif</div>
+        <div class="platform-logo">🏨</div>
+        <div class="platform-info">
+          <div class="platform-name">Booking.com</div>
+          <div class="platform-status">✓ Disponible maintenant</div>
+        </div>
+      </div>
+
+      <div class="platform-card active">
+        <div class="platform-badge">✓ Actif</div>
+        <div class="platform-logo">🏠</div>
+        <div class="platform-info">
+          <div class="platform-name">Airbnb</div>
+          <div class="platform-status">✓ Disponible maintenant</div>
+        </div>
+      </div>
+
+      <div class="platform-card active">
+        <div class="platform-badge">✓ Actif</div>
+        <div class="platform-logo">✔️</div>
+        <div class="platform-info">
+          <div class="platform-name">Avis Vérifiés</div>
+          <div class="platform-status">✓ Disponible maintenant</div>
+        </div>
+      </div>
+
+      <div class="platform-card active">
+        <div class="platform-badge">✓ Actif</div>
+        <div class="platform-logo">🛒</div>
+        <div class="platform-info">
+          <div class="platform-name">Amazon Seller</div>
+          <div class="platform-status">✓ Disponible maintenant</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- BIENTÔT -->
+    <p style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);margin-top:32px;margin-bottom:14px">🔜 Prochainement</p>
+    <div class="platforms-grid" style="margin-top:0">
+
+      <div class="platform-card soon">
+        <div class="platform-badge soon-badge">Bientôt</div>
+        <div class="platform-logo">✈️</div>
+        <div class="platform-info">
+          <div class="platform-name">Expedia</div>
+          <div class="platform-status">🔜 Q3 2025</div>
+        </div>
+      </div>
+
+      <div class="platform-card soon">
+        <div class="platform-badge soon-badge">Bientôt</div>
+        <div class="platform-logo">🏥</div>
+        <div class="platform-info">
+          <div class="platform-name">Doctolib</div>
+          <div class="platform-status">🔜 Q3 2025</div>
+        </div>
+      </div>
+
+      <div class="platform-card soon">
+        <div class="platform-badge soon-badge">Bientôt</div>
+        <div class="platform-logo">💼</div>
+        <div class="platform-info">
+          <div class="platform-name">Glassdoor</div>
+          <div class="platform-status">🔜 Q3 2025</div>
+        </div>
+      </div>
+
+      <div class="platform-card soon">
+        <div class="platform-badge soon-badge">Bientôt</div>
+        <div class="platform-logo">💼</div>
+        <div class="platform-info">
+          <div class="platform-name">Indeed</div>
+          <div class="platform-status">🔜 Q3 2025</div>
+        </div>
+      </div>
+
+      <div class="platform-card soon">
+        <div class="platform-badge soon-badge">Bientôt</div>
+        <div class="platform-logo">🏡</div>
+        <div class="platform-info">
+          <div class="platform-name">SeLoger</div>
+          <div class="platform-status">🔜 Q4 2025</div>
+        </div>
+      </div>
+
+      <div class="platform-card soon">
+        <div class="platform-badge soon-badge">Bientôt</div>
+        <div class="platform-logo">📱</div>
+        <div class="platform-info">
+          <div class="platform-name">App Store / Play Store</div>
+          <div class="platform-status">🔜 Q4 2025</div>
+        </div>
+      </div>
+
+      <div class="platform-card soon">
+        <div class="platform-badge soon-badge">Bientôt</div>
+        <div class="platform-logo">🛍️</div>
+        <div class="platform-info">
+          <div class="platform-name">Cdiscount</div>
+          <div class="platform-status">🔜 Q4 2025</div>
+        </div>
+      </div>
+
+      <div class="platform-card soon">
+        <div class="platform-badge soon-badge">Bientôt</div>
+        <div class="platform-logo">🏖️</div>
+        <div class="platform-info">
+          <div class="platform-name">Holidaycheck</div>
+          <div class="platform-status">🔜 Q4 2025</div>
+        </div>
+      </div>
+
+      <div class="platform-card soon">
+        <div class="platform-badge soon-badge">Bientôt</div>
+        <div class="platform-logo">🔵</div>
+        <div class="platform-info">
+          <div class="platform-name">Yelp</div>
+          <div class="platform-status">🔜 Q4 2025</div>
+        </div>
+      </div>
+
+      <div class="platform-card soon">
+        <div class="platform-badge soon-badge">Bientôt</div>
+        <div class="platform-logo">💬</div>
+        <div class="platform-info">
+          <div class="platform-name">Custplace</div>
+          <div class="platform-status">🔜 Q4 2025</div>
+        </div>
+      </div>
+
+    </div>
+
+    <div style="margin-top:32px;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);border-radius:10px;padding:16px 24px;display:inline-block;font-size:14px;color:var(--gold)">
+      💡 Abonnez-vous maintenant — toutes les nouvelles plateformes sont incluses sans surcoût dès leur sortie
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section class="faq">
+  <div class="section-inner" style="text-align:center">
+    <div class="section-tag">Questions fréquentes</div>
+    <h2 class="section-title">Tout ce que vous voulez savoir</h2>
+
+    <div class="faq-list">
+      <div class="faq-item">
+        <h3>Est-ce vraiment automatique ? Je n'ai rien à faire ?</h3>
+        <p>Oui, à 100%. Une fois votre compte connecté, ReputIA surveille vos avis en permanence et répond automatiquement. Vous n'avez pas à ouvrir l'application, ni à valider les réponses. Vous recevez simplement un email de notification après chaque réponse publiée.</p>
+      </div>
+      <div class="faq-item">
+        <h3>Les réponses vont-elles sembler robotiques ?</h3>
+        <p>Non. L'IA génère des réponses uniques pour chaque avis, en tenant compte du contenu, de la note et du ton du client. Chaque réponse est différente. Vos clients ne verront aucune différence avec une réponse humaine.</p>
+      </div>
+      <div class="faq-item">
+        <h3>Que se passe-t-il avec les avis très négatifs ou agressifs ?</h3>
+        <p>Pour les avis 1-2 étoiles avec un contenu délicat, ReputIA génère une réponse professionnelle et empathique, et vous envoie une alerte spéciale. Vous pouvez modifier la réponse avant qu'elle soit publiée si vous le souhaitez.</p>
+      </div>
+      <div class="faq-item">
+        <h3>Est-ce compatible avec tous les types d'établissements ?</h3>
+        <p>Oui. ReputIA fonctionne pour tous les commerces ayant une fiche Google My Business : restaurants, hôtels, boutiques, salons, garages, cabinets médicaux, artisans, et bien plus.</p>
+      </div>
+      <div class="faq-item">
+        <h3>Puis-je annuler à tout moment ?</h3>
+        <p>Absolument. Aucun engagement, aucun frais de résiliation. Annulez en un clic depuis votre tableau de bord ou en envoyant un email.</p>
+      </div>
+      <div class="faq-item">
+        <h3>Comment ReputIA accède-t-il à mes avis Google ?</h3>
+        <p>Via l'API officielle Google My Business. Vous autorisez l'accès lors de l'inscription via votre compte Google — c'est le même processus sécurisé que pour n'importe quelle autre application Google. ReputIA n'accède qu'aux avis, rien d'autre.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA FINAL -->
+<section class="cta-final">
+  <div class="cta-glow"></div>
+  <h2>Vos concurrents<br>répondent déjà.</h2>
+  <p>Chaque avis sans réponse est une opportunité perdue. Commencez aujourd'hui — c'est automatique dès demain.</p>
+  <a href="#pricing" class="btn-primary" style="font-size:17px;padding:18px 40px">
+    ⚡ Démarrer gratuitement — 14 jours offerts
+  </a>
+  <p style="margin-top:16px;font-size:13px;color:var(--muted)">Sans carte bancaire · Installation 5 min · Annulation libre</p>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <p>© 2025 ReputIA · <a href="#">Mentions légales</a> · <a href="#">Confidentialité</a> · <a href="mailto:contact@reputia.fr">contact@reputia.fr</a></p>
+</footer>
+
+</body>
+</html>
