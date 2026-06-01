@@ -117,6 +117,35 @@ input:checked + .slider:before{transform:translateX(20px)}
 .view-tabs{display:flex;gap:.5rem;margin-bottom:1rem}
 .view-tab{padding:.5rem 1rem;border-radius:.4rem;cursor:pointer;font-size:.875rem;color:#6b7280;border:1px solid transparent;transition:all .2s}
 .view-tab.active{background:#1a1a2e;color:#f59e0b;border-color:#f59e0b}
+
+/* INTEGRATIONS */
+.integrations-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1.5rem}
+.integ-card{background:#111118;border:1px solid #1f2937;border-radius:.75rem;padding:1.25rem;transition:border .2s;position:relative}
+.integ-card.connected{border-color:#059669}
+.integ-card:hover{border-color:#374151}
+.integ-header{display:flex;align-items:center;gap:.75rem;margin-bottom:.75rem}
+.integ-icon{font-size:1.75rem;width:44px;height:44px;display:flex;align-items:center;justify-content:center;background:#0d0d18;border-radius:.5rem}
+.integ-name{font-weight:700;font-size:.95rem;color:#e5e7eb}
+.integ-status{font-size:.75rem;margin-top:.15rem}
+.integ-status.on{color:#10b981}
+.integ-status.off{color:#4b5563}
+.integ-badge{position:absolute;top:.75rem;right:.75rem;padding:.2rem .55rem;border-radius:.25rem;font-size:.7rem;font-weight:700}
+.integ-badge.connected{background:#064e3b;color:#34d399}
+.integ-badge.disconnected{background:#1f2937;color:#4b5563}
+.integ-actions{display:flex;gap:.5rem;margin-top:.75rem}
+.btn-connect-small{flex:1;padding:.45rem .6rem;background:linear-gradient(135deg,#f59e0b,#ef4444);border:none;border-radius:.4rem;color:#000;font-weight:700;font-size:.8rem;cursor:pointer;transition:opacity .2s}
+.btn-connect-small:hover{opacity:.9}
+.btn-sync-small{padding:.45rem .75rem;background:transparent;border:1px solid #374151;color:#9ca3af;border-radius:.4rem;font-size:.8rem;cursor:pointer;transition:all .2s}
+.btn-sync-small:hover{border-color:#f59e0b;color:#f59e0b}
+.btn-disconnect-small{padding:.45rem .75rem;background:transparent;border:1px solid #374151;color:#6b7280;border-radius:.4rem;font-size:.75rem;cursor:pointer}
+.btn-disconnect-small:hover{border-color:#ef4444;color:#ef4444}
+
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:500;display:flex;align-items:center;justify-content:center;padding:1rem}
+.modal{background:#111118;border:1px solid #2d2d44;border-radius:1rem;padding:1.75rem;width:100%;max-width:480px}
+.modal-title{font-size:1.1rem;font-weight:700;color:#e5e7eb;margin-bottom:.25rem}
+.modal-subtitle{font-size:.8rem;color:#6b7280;margin-bottom:1.25rem}
+.modal-actions{display:flex;gap:.75rem;margin-top:1.25rem}
 </style>
 </head>
 <body>
@@ -142,6 +171,9 @@ input:checked + .slider:before{transform:translateX(20px)}
       <div class="sidebar-title">Navigation</div>
       <div class="nav-item active" onclick="showView('reviews')" id="nav-reviews">
         <span class="icon">⭐</span> Avis
+      </div>
+      <div class="nav-item" onclick="showView('integrations')" id="nav-integrations">
+        <span class="icon">🔌</span> Intégrations
       </div>
       <div class="nav-item" onclick="showView('settings')" id="nav-settings">
         <span class="icon">⚙️</span> Paramètres
@@ -185,6 +217,30 @@ input:checked + .slider:before{transform:translateX(20px)}
           </div>
         </div>
         <div class="reviews-list" id="reviews-list"></div>
+      </div>
+    </div>
+
+    <!-- VIEW: INTEGRATIONS -->
+    <div id="view-integrations" style="display:none">
+      <div style="margin-bottom:1.5rem">
+        <h2 style="font-size:1.25rem;font-weight:700;color:#e5e7eb;margin-bottom:.35rem">Intégrations plateformes</h2>
+        <p style="font-size:.875rem;color:#6b7280">Connectez vos profils sur chaque plateforme pour centraliser tous vos avis.</p>
+      </div>
+      <div class="integrations-grid" id="integrations-grid">
+        <div style="color:#4b5563;font-size:.875rem">Chargement...</div>
+      </div>
+    </div>
+
+    <!-- MODAL CONNECT PLATFORM -->
+    <div id="modal-platform" style="display:none" class="modal-overlay" onclick="if(event.target===this)closePlatformModal()">
+      <div class="modal">
+        <div class="modal-title" id="modal-platform-title">Connecter une plateforme</div>
+        <div class="modal-subtitle" id="modal-platform-subtitle"></div>
+        <div id="modal-platform-fields"></div>
+        <div class="modal-actions">
+          <button class="btn-primary" onclick="submitPlatformConnect()" id="btn-modal-connect">Connecter</button>
+          <button class="btn-secondary" onclick="closePlatformModal()">Annuler</button>
+        </div>
       </div>
     </div>
 
@@ -256,10 +312,13 @@ async function init() {
 // ─── NAVIGATION ─────────────────────────
 
 function showView(view) {
-  document.getElementById('view-reviews').style.display = view === 'reviews' ? '' : 'none';
-  document.getElementById('view-settings').style.display = view === 'settings' ? '' : 'none';
-  document.getElementById('nav-reviews').classList.toggle('active', view === 'reviews');
-  document.getElementById('nav-settings').classList.toggle('active', view === 'settings');
+  ['reviews', 'integrations', 'settings'].forEach(v => {
+    const el = document.getElementById('view-' + v);
+    if (el) el.style.display = view === v ? '' : 'none';
+    const nav = document.getElementById('nav-' + v);
+    if (nav) nav.classList.toggle('active', view === v);
+  });
+  if (view === 'integrations') loadIntegrations();
 }
 
 // ─── LOCATIONS ──────────────────────────
@@ -275,8 +334,8 @@ async function loadLocations() {
   }
 
   list.innerHTML = locations.map(l => {
-    const isTp = l.google_location_name && l.google_location_name.startsWith('tp_');
-    const platformBadge = isTp ? '<span style="font-size:.7rem;color:#00b67a">⭐ Trustpilot</span>' : '<span style="font-size:.7rem;color:#4b9cf5">🔵 Google</span>';
+    const n = l.google_location_name || '';
+    const platformBadge = getPlatformBadge(n);
     return `
     <div class="location-card ${selectedLocationId === l.id ? 'active' : ''}" onclick="selectLocation(${l.id})">
       <div class="loc-name">${l.business_name} ${platformBadge}</div>
@@ -423,18 +482,19 @@ function renderReviews(reviews) {
       </div>
     ` : '';
 
-    const isTp = r.google_review_id && r.google_review_id.startsWith('tp_');
-    const platformLabel = isTp ? 'Trustpilot' : 'Google';
-    const platformColor = isTp ? '#00b67a' : '#4b9cf5';
+    const locName = r.google_location_name || r.google_review_id || '';
+    const plat = getPlatformInfo(locName);
+
+    const canApiPost = locName.startsWith('tp_') || (!locName.startsWith('ta_') && !locName.startsWith('fb_') && !locName.startsWith('pj_') && !locName.startsWith('tf_') && !locName.startsWith('bk_') && !locName.startsWith('ab_') && !locName.startsWith('av_') && !locName.startsWith('az_'));
 
     const actionBtns = r.status === 'posted' ? `
-      <span style="color:#10b981;font-size:.875rem">✅ Réponse publiée sur ${platformLabel}</span>
+      <span style="color:#10b981;font-size:.875rem">✅ Réponse publiée sur ${plat.name}</span>
     ` : `
       <button class="btn-secondary" onclick="generateResponse(${r.id})" id="gen-btn-${r.id}">
         ${r.generated_response ? '🔄 Regénérer' : '✨ Générer réponse'}
       </button>
       ${r.generated_response ? `
-        <button class="btn-success" onclick="saveAndPost(${r.id})">📤 Poster sur ${platformLabel}</button>
+        <button class="btn-success" onclick="saveAndPost(${r.id})">${canApiPost ? '📤 Poster sur ' + plat.name : '✅ Marquer comme posté'}</button>
         <button class="btn-secondary" onclick="saveResponse(${r.id})">💾 Sauvegarder</button>
       ` : ''}
     `;
@@ -443,10 +503,10 @@ function renderReviews(reviews) {
       <div class="review-card" id="card-${r.id}">
         <div class="review-header">
           <div class="reviewer-info">
-            <div class="reviewer-avatar" style="background:linear-gradient(135deg,${isTp ? '#00b67a,#007a52' : '#f59e0b,#ef4444'})">${initials}</div>
+            <div class="reviewer-avatar" style="background:linear-gradient(135deg,${plat.gradient})">${initials}</div>
             <div>
               <div class="reviewer-name">${r.reviewer_name || 'Anonyme'}</div>
-              <div class="reviewer-platform">${r.business_name || ''} <span style="color:${platformColor};font-size:.7rem">${isTp ? '⭐ Trustpilot' : '🔵 Google'}</span></div>
+              <div class="reviewer-platform">${r.business_name || ''} <span style="color:${plat.color};font-size:.7rem">${plat.icon} ${plat.name}</span></div>
             </div>
           </div>
           <div style="text-align:right">
@@ -648,6 +708,205 @@ async function submitManualReview() {
     closeAddReviewModal();
     loadReviews();
     loadStats();
+  } else {
+    notify('❌ ' + (data.error || 'Erreur'), 'error');
+  }
+}
+
+// ─── PLATFORM HELPERS ───────────────────
+
+const PLATFORM_MAP = {
+  'tp_':  { name: 'Trustpilot',           icon: '⭐', color: '#00b67a', gradient: '#00b67a,#007a52' },
+  'ta_':  { name: 'TripAdvisor',          icon: '🧭', color: '#34e0a1', gradient: '#1a7f5a,#34e0a1' },
+  'fb_':  { name: 'Facebook',             icon: '📘', color: '#4b9cf5', gradient: '#1877f2,#4b9cf5' },
+  'pj_':  { name: 'Pages Jaunes',         icon: '📒', color: '#f5a623', gradient: '#f5a623,#e08c00' },
+  'tf_':  { name: 'TheFork',              icon: '🍽️', color: '#00a77e', gradient: '#00a77e,#007a5e' },
+  'bk_':  { name: 'Booking.com',          icon: '🏨', color: '#003580', gradient: '#003580,#0071c2' },
+  'ab_':  { name: 'Airbnb',               icon: '🏠', color: '#ff5a5f', gradient: '#ff5a5f,#c13584' },
+  'av_':  { name: 'Avis Vérifiés',        icon: '✅', color: '#22c55e', gradient: '#16a34a,#22c55e' },
+  'az_':  { name: 'Amazon',               icon: '📦', color: '#ff9900', gradient: '#ff9900,#e47911' },
+  'demo_':{ name: 'Démo',                 icon: '🧪', color: '#818cf8', gradient: '#6366f1,#818cf8' },
+  'manual_':{ name: 'Manuel',             icon: '✏️', color: '#9ca3af', gradient: '#6b7280,#9ca3af' }
+};
+
+function getPlatformInfo(locName) {
+  for (const [prefix, info] of Object.entries(PLATFORM_MAP)) {
+    if (locName.startsWith(prefix)) return info;
+  }
+  return { name: 'Google My Business', icon: '🔵', color: '#4b9cf5', gradient: '#f59e0b,#ef4444' };
+}
+
+function getPlatformBadge(locName) {
+  const p = getPlatformInfo(locName);
+  return `<span style="font-size:.7rem;color:${p.color}">${p.icon} ${p.name}</span>`;
+}
+
+// ─── INTEGRATIONS ───────────────────────
+
+const PLATFORM_DEFS = {
+  google:      { name: 'Google My Business', icon: '🔵', desc: 'Connectez via OAuth', type: 'oauth' },
+  trustpilot:  { name: 'Trustpilot',         icon: '⭐', desc: 'Connectez via OAuth', type: 'oauth' },
+  tripadvisor: { name: 'TripAdvisor',        icon: '🧭', desc: 'URL de votre fiche', type: 'url', placeholder: 'https://www.tripadvisor.fr/Restaurant_Review-...' },
+  facebook:    { name: 'Facebook',           icon: '📘', desc: 'URL + Page Access Token', type: 'url+token', placeholder: 'https://www.facebook.com/votre-page', tokenLabel: 'Page Access Token' },
+  pagesjaunes: { name: 'Pages Jaunes',       icon: '📒', desc: 'URL de votre fiche', type: 'url', placeholder: 'https://www.pagesjaunes.fr/...' },
+  thefork:     { name: 'TheFork',            icon: '🍽️', desc: 'URL de votre restaurant', type: 'url', placeholder: 'https://www.thefork.fr/restaurant/...' },
+  booking:     { name: 'Booking.com',        icon: '🏨', desc: 'URL de votre établissement', type: 'url', placeholder: 'https://www.booking.com/hotel/fr/...' },
+  airbnb:      { name: 'Airbnb',             icon: '🏠', desc: 'URL de votre annonce', type: 'url', placeholder: 'https://www.airbnb.fr/rooms/...' },
+  avisverifies:{ name: 'Avis Vérifiés',      icon: '✅', desc: 'URL de votre page avis', type: 'url', placeholder: 'https://www.avis-verifies.com/...' },
+  amazon:      { name: 'Amazon Seller',      icon: '📦', desc: 'URL de vos avis produit', type: 'url', placeholder: 'https://www.amazon.fr/product-reviews/...' }
+};
+
+let currentPlatformModal = null;
+
+async function loadIntegrations() {
+  const res = await fetch('/api/platforms');
+  const data = await res.json();
+
+  const grid = document.getElementById('integrations-grid');
+  grid.innerHTML = Object.entries(PLATFORM_DEFS).map(([key, def]) => {
+    const status = data[key] || { connected: false };
+    const isConnected = status.connected;
+
+    let actionBtns = '';
+    if (def.type === 'oauth') {
+      if (key === 'google') {
+        actionBtns = `<button class="btn-connect-small" onclick="connectGoogle()">Connecter</button>`;
+      } else {
+        actionBtns = `<button class="btn-connect-small" onclick="connectTrustpilot()">Connecter</button>`;
+      }
+    } else {
+      if (isConnected) {
+        actionBtns = `
+          <button class="btn-sync-small" onclick="syncPlatform('${key}')">🔄 Sync</button>
+          <button class="btn-connect-small" style="background:linear-gradient(135deg,#374151,#4b5563)" onclick="openPlatformModal('${key}')">Modifier</button>
+          <button class="btn-disconnect-small" onclick="disconnectPlatform('${key}')">✕</button>
+        `;
+      } else {
+        actionBtns = `<button class="btn-connect-small" onclick="openPlatformModal('${key}')">Connecter</button>`;
+      }
+    }
+
+    return `
+      <div class="integ-card ${isConnected ? 'connected' : ''}">
+        <span class="integ-badge ${isConnected ? 'connected' : 'disconnected'}">${isConnected ? '✓ Actif' : 'Inactif'}</span>
+        <div class="integ-header">
+          <div class="integ-icon">${def.icon}</div>
+          <div>
+            <div class="integ-name">${def.name}</div>
+            <div class="integ-status ${isConnected ? 'on' : 'off'}">${isConnected ? '✓ Connecté' : def.desc}</div>
+          </div>
+        </div>
+        <div class="integ-actions">${actionBtns}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+function openPlatformModal(platform) {
+  currentPlatformModal = platform;
+  const def = PLATFORM_DEFS[platform];
+
+  document.getElementById('modal-platform-title').textContent = `${def.icon} Connecter ${def.name}`;
+
+  let fields = `
+    <div class="form-group">
+      <label>Nom de votre établissement</label>
+      <input type="text" id="modal-biz-name" placeholder="Ex: Mon Restaurant Paris">
+    </div>
+    <div class="form-group">
+      <label>URL de votre profil ${def.name}</label>
+      <input type="url" id="modal-platform-url" placeholder="${def.placeholder || 'https://...'}">
+      <small style="color:#4b5563;font-size:.75rem;margin-top:.35rem;display:block">
+        Copiez l'URL de votre page établissement sur ${def.name}
+      </small>
+    </div>
+  `;
+
+  if (def.type === 'url+token') {
+    fields += `
+      <div class="form-group">
+        <label>${def.tokenLabel || 'Access Token'}</label>
+        <input type="password" id="modal-platform-token" placeholder="Votre token d'accès">
+        <small style="color:#4b5563;font-size:.75rem;margin-top:.35rem;display:block">
+          Obtenez votre token sur <a href="https://developers.facebook.com/tools/explorer" target="_blank" style="color:#f59e0b">Facebook Graph Explorer</a>
+        </small>
+      </div>
+    `;
+  }
+
+  document.getElementById('modal-platform-subtitle').textContent = def.desc;
+  document.getElementById('modal-platform-fields').innerHTML = fields;
+  document.getElementById('modal-platform').style.display = 'flex';
+}
+
+function closePlatformModal() {
+  document.getElementById('modal-platform').style.display = 'none';
+  currentPlatformModal = null;
+}
+
+async function submitPlatformConnect() {
+  if (!currentPlatformModal) return;
+
+  const url   = document.getElementById('modal-platform-url')?.value?.trim();
+  const token = document.getElementById('modal-platform-token')?.value?.trim();
+  const name  = document.getElementById('modal-biz-name')?.value?.trim();
+
+  if (!url) { notify('❌ URL requise', 'error'); return; }
+
+  const btn = document.getElementById('btn-modal-connect');
+  btn.textContent = '⏳ Connexion…';
+  btn.disabled = true;
+
+  try {
+    const res = await fetch('/api/platforms/connect', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ platform: currentPlatformModal, url, token, business_name: name })
+    });
+    const data = await res.json();
+
+    if (data.ok) {
+      notify(data.synced > 0 ? `✅ Connecté ! ${data.synced} avis récupérés.` : '✅ Plateforme connectée. Sync en cours…', 'success');
+      closePlatformModal();
+      loadIntegrations();
+      loadLocations();
+      loadStats();
+      if (data.synced > 0) loadReviews();
+    } else {
+      notify('❌ ' + (data.error || 'Erreur'), 'error');
+    }
+  } catch(e) {
+    notify('❌ Erreur réseau', 'error');
+  }
+
+  btn.textContent = 'Connecter';
+  btn.disabled = false;
+}
+
+async function syncPlatform(platform) {
+  notify('⏳ Synchronisation…', 'success');
+  try {
+    const res = await fetch(`/api/platforms/${platform}/sync`, { method: 'POST' });
+    const data = await res.json();
+    if (data.ok) {
+      notify(data.newReviews > 0 ? `✅ ${data.newReviews} nouveau(x) avis !` : '✅ Tout est à jour', 'success');
+      if (data.newReviews > 0) { loadReviews(); loadStats(); }
+    } else {
+      notify('❌ ' + (data.error || 'Erreur sync'), 'error');
+    }
+  } catch(e) {
+    notify('❌ Erreur réseau', 'error');
+  }
+}
+
+async function disconnectPlatform(platform) {
+  if (!confirm('Déconnecter cette plateforme ?')) return;
+  const res = await fetch(`/api/platforms/${platform}`, { method: 'DELETE' });
+  const data = await res.json();
+  if (data.ok) {
+    notify('✅ Plateforme déconnectée', 'success');
+    loadIntegrations();
+    loadLocations();
   } else {
     notify('❌ ' + (data.error || 'Erreur'), 'error');
   }
