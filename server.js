@@ -7,6 +7,7 @@ const bcrypt = require('bcryptjs');
 const cron = require('node-cron');
 const path = require('path');
 const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 const Stripe = require('stripe');
 const stripe = process.env.STRIPE_SECRET_KEY ? Stripe(process.env.STRIPE_SECRET_KEY) : null;
 
@@ -14,17 +15,9 @@ const stripe = process.env.STRIPE_SECRET_KEY ? Stripe(process.env.STRIPE_SECRET_
 const fetch = (...args) => import('node-fetch').then(({ default: f }) => f(...args));
 
 // ─────────────────────────────────────────
-// CONFIGURATION EMAIL (Gmail SMTP)
+// CONFIGURATION EMAIL (Resend — HTTP API, fonctionne sur Render)
 // ─────────────────────────────────────────
-const emailTransporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 587,
-  secure: false,
-  auth: {
-    user: process.env.MAIL_USER,
-    pass: process.env.MAIL_PASS
-  }
-});
+const resendClient = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
 // ─────────────────────────────────────────
 // TEMPLATES EMAIL
@@ -454,17 +447,18 @@ function emailSemiAutoReview(userEmail, reviewerName, platform, stars, reviewTex
 }
 
 async function sendEmail(to, subject, html) {
-  if (!process.env.MAIL_USER || !process.env.MAIL_PASS) {
-    console.log(`[EMAIL] Config manquante (MAIL_USER/MAIL_PASS) — email non envoyé à ${to}`);
+  if (!resendClient) {
+    console.log(`[EMAIL] RESEND_API_KEY manquante — email non envoyé à ${to}`);
     return;
   }
   try {
-    await emailTransporter.sendMail({
-      from: `"ReputIA" <${process.env.MAIL_USER}>`,
+    const { error } = await resendClient.emails.send({
+      from: 'ReputIA <onboarding@resend.dev>',
       to,
       subject,
       html
     });
+    if (error) throw new Error(JSON.stringify(error));
     console.log(`[EMAIL] ✅ Envoyé à ${to} — ${subject}`);
   } catch (e) {
     console.error(`[EMAIL] ❌ Erreur envoi à ${to}:`, e.message);
