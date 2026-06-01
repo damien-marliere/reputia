@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Page introuvable — ReputIA</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #05050a;
+      color: #f1f1f8;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 48px;
+      text-decoration: none;
+    }
+
+    .logo-icon {
+      width: 44px;
+      height: 44px;
+      background: linear-gradient(135deg, #f59e0b, #ef4444);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+    }
+
+    .logo-text {
+      font-size: 22px;
+      font-weight: 800;
+      color: #f1f1f8;
+      letter-spacing: -0.5px;
+    }
+
+    .card {
+      background: #0d0d18;
+      border: 1px solid #1e1e35;
+      border-radius: 20px;
+      padding: 48px 40px;
+      text-align: center;
+      max-width: 480px;
+      width: 100%;
+    }
+
+    .error-code {
+      font-size: 96px;
+      font-weight: 800;
+      color: #f59e0b;
+      line-height: 1;
+      margin-bottom: 16px;
+      letter-spacing: -4px;
+    }
+
+    .error-title {
+      font-size: 24px;
+      font-weight: 700;
+      color: #f1f1f8;
+      margin-bottom: 12px;
+    }
+
+    .error-desc {
+      font-size: 15px;
+      color: #6b7280;
+      line-height: 1.6;
+      margin-bottom: 36px;
+    }
+
+    .btn {
+      display: inline-block;
+      background: linear-gradient(135deg, #f59e0b, #f97316);
+      color: #000;
+      font-weight: 700;
+      font-size: 15px;
+      padding: 14px 32px;
+      border-radius: 12px;
+      text-decoration: none;
+      transition: opacity 0.2s;
+    }
+
+    .btn:hover {
+      opacity: 0.9;
+    }
+
+    .divider {
+      height: 1px;
+      background: #1e1e35;
+      margin: 32px 0;
+    }
+
+    .footer-note {
+      font-size: 13px;
+      color: #4b5563;
+    }
+
+    .footer-note a {
+      color: #f59e0b;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+
+  <a href="/dashboard.html" class="logo">
+    <div class="logo-icon">⭐</div>
+    <span class="logo-text">ReputIA</span>
+  </a>
+
+  <div class="card">
+    <div class="error-code">404</div>
+    <h1 class="error-title">Oops, cette page n'existe pas</h1>
+    <p class="error-desc">La page que vous cherchez a peut-être été déplacée, supprimée, ou n'a jamais existé. Pas de panique — votre tableau de bord est intact.</p>
+    <a href="/dashboard.html" class="btn">Retour au tableau de bord</a>
+    <div class="divider"></div>
+    <p class="footer-note">Besoin d'aide ? <a href="mailto:contact@reputia.fr">contact@reputia.fr</a></p>
+  </div>
+
+</body>
+</html>
