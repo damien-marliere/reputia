@@ -16,14 +16,23 @@ const app = express();
 // CONFIG PLATEFORMES
 // ─────────────────────────────────────────
 const PLATFORM_CONFIG = {
-  tripadvisor:  { prefix: 'ta_',  name: 'TripAdvisor',          icon: '🧭', needsUrl: true,   needsToken: false },
-  facebook:     { prefix: 'fb_',  name: 'Facebook',             icon: '📘', needsUrl: true,   needsToken: true  },
-  pagesjaunes:  { prefix: 'pj_',  name: 'Pages Jaunes',         icon: '📒', needsUrl: true,   needsToken: false },
-  thefork:      { prefix: 'tf_',  name: 'TheFork / LaFourchette',icon: '🍽️', needsUrl: true,   needsToken: false },
-  booking:      { prefix: 'bk_',  name: 'Booking.com',          icon: '🏨', needsUrl: true,   needsToken: false },
-  airbnb:       { prefix: 'ab_',  name: 'Airbnb',               icon: '🏠', needsUrl: true,   needsToken: false },
-  avisverifies: { prefix: 'av_',  name: 'Avis Vérifiés',        icon: '✅', needsUrl: true,   needsToken: false },
-  amazon:       { prefix: 'az_',  name: 'Amazon Seller',        icon: '📦', needsUrl: true,   needsToken: false }
+  tripadvisor:  { prefix: 'ta_',  name: 'TripAdvisor',           icon: '🧭', needsUrl: true,  needsToken: false },
+  facebook:     { prefix: 'fb_',  name: 'Facebook',              icon: '📘', needsUrl: true,  needsToken: true  },
+  pagesjaunes:  { prefix: 'pj_',  name: 'Pages Jaunes',          icon: '📒', needsUrl: true,  needsToken: false },
+  thefork:      { prefix: 'tf_',  name: 'TheFork / LaFourchette',icon: '🍽️', needsUrl: true,  needsToken: false },
+  booking:      { prefix: 'bk_',  name: 'Booking.com',           icon: '🏨', needsUrl: true,  needsToken: false },
+  airbnb:       { prefix: 'ab_',  name: 'Airbnb',                icon: '🏠', needsUrl: true,  needsToken: false },
+  avisverifies: { prefix: 'av_',  name: 'Avis Vérifiés',         icon: '✅', needsUrl: true,  needsToken: false },
+  amazon:       { prefix: 'az_',  name: 'Amazon Seller',         icon: '📦', needsUrl: true,  needsToken: false },
+  yelp:         { prefix: 'yl_',  name: 'Yelp',                  icon: '🔵', needsUrl: true,  needsToken: true  },
+  custplace:    { prefix: 'cu_',  name: 'Custplace',             icon: '💬', needsUrl: true,  needsToken: false },
+  glassdoor:    { prefix: 'gl_',  name: 'Glassdoor',             icon: '💼', needsUrl: true,  needsToken: false },
+  indeed:       { prefix: 'id_',  name: 'Indeed',                icon: '💼', needsUrl: true,  needsToken: false },
+  doctolib:     { prefix: 'do_',  name: 'Doctolib',              icon: '🏥', needsUrl: true,  needsToken: false },
+  holidaycheck: { prefix: 'hc_',  name: 'Holidaycheck',          icon: '🏖️', needsUrl: true,  needsToken: false },
+  cdiscount:    { prefix: 'cd_',  name: 'Cdiscount',             icon: '🛍️', needsUrl: true,  needsToken: false },
+  appstore:     { prefix: 'as_',  name: 'App Store',             icon: '📱', needsUrl: true,  needsToken: false },
+  playstore:    { prefix: 'ps_',  name: 'Play Store',            icon: '▶️', needsUrl: true,  needsToken: false }
 };
 
 // Scrape headers réalistes
@@ -848,6 +857,15 @@ async function fetchNewReviews(location) {
   if (name.startsWith('ab_'))  return fetchAirbnbReviews(location);
   if (name.startsWith('av_'))  return fetchAvisVerifiesReviews(location);
   if (name.startsWith('az_'))  return fetchAmazonReviews(location);
+  if (name.startsWith('yl_'))  return fetchYelpReviews(location);
+  if (name.startsWith('cu_'))  return fetchCustplaceReviews(location);
+  if (name.startsWith('gl_'))  return fetchGlassdoorReviews(location);
+  if (name.startsWith('id_'))  return fetchIndeedReviews(location);
+  if (name.startsWith('do_'))  return fetchDoctolibReviews(location);
+  if (name.startsWith('hc_'))  return fetchHolidaycheckReviews(location);
+  if (name.startsWith('cd_'))  return fetchCdiscountReviews(location);
+  if (name.startsWith('as_'))  return fetchAppStoreReviews(location);
+  if (name.startsWith('ps_'))  return fetchPlayStoreReviews(location);
 
   // Google (par défaut)
   if (!location.refresh_token || name.startsWith('gmb_') || name.startsWith('manual_') || name.startsWith('demo_')) return [];
@@ -1315,6 +1333,368 @@ async function fetchAmazonReviews(location) {
     return storeScrapedReviews(reviews, location, 'az');
   } catch(e) {
     console.error('[AZ SYNC]', e.message);
+    return [];
+  }
+}
+
+// ─────────────────────────────────────────
+// YELP — Fusion API (gratuit avec clé)
+// ─────────────────────────────────────────
+
+async function fetchYelpReviews(location) {
+  if (!location.platform_url) return [];
+
+  try {
+    // Extraire le business alias/id depuis l'URL Yelp
+    const match = location.platform_url.match(/yelp\.[a-z]+\/biz\/([^?&#/]+)/i);
+    const bizId = match ? match[1] : null;
+
+    // Si token (API key), utiliser l'API Fusion
+    if (bizId && location.access_token) {
+      const res = await fetch(`https://api.yelp.com/v3/businesses/${bizId}/reviews?limit=50`, {
+        headers: { 'Authorization': `Bearer ${location.access_token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const reviews = (data.reviews || []).map(r => ({
+          stars: r.rating || 5,
+          author: r.user?.name || 'Anonyme',
+          text: r.text || ''
+        })).filter(r => r.text);
+        return storeScrapedReviews(reviews, location, 'yl');
+      }
+    }
+
+    // Fallback scraping
+    const res = await fetch(location.platform_url, { headers: SCRAPE_HEADERS });
+    if (!res.ok) return [];
+    const html = await res.text();
+    const reviews = extractJsonLdReviews(html);
+    return storeScrapedReviews(reviews, location, 'yl');
+  } catch(e) {
+    console.error('[YELP SYNC]', e.message);
+    return [];
+  }
+}
+
+// ─────────────────────────────────────────
+// CUSTPLACE — Scraper
+// ─────────────────────────────────────────
+
+async function fetchCustplaceReviews(location) {
+  if (!location.platform_url) return [];
+  try {
+    const res = await fetch(location.platform_url, { headers: SCRAPE_HEADERS });
+    if (!res.ok) return [];
+    const html = await res.text();
+    const reviews = extractJsonLdReviews(html);
+
+    if (reviews.length === 0) {
+      // Custplace utilise souvent un widget JSON
+      const jsonMatch = html.match(/window\.__INITIAL_STATE__\s*=\s*({[\s\S]*?});/);
+      if (jsonMatch) {
+        try {
+          const state = JSON.parse(jsonMatch[1]);
+          const rawReviews = state?.reviews?.list || state?.data?.reviews || [];
+          const parsed = rawReviews.map(r => ({
+            stars: Math.round(parseFloat(r.note || r.rating || 4)),
+            author: r.author || r.firstname || 'Anonyme',
+            text: r.comment || r.text || ''
+          })).filter(r => r.text);
+          return storeScrapedReviews(parsed, location, 'cu');
+        } catch(e2) {}
+      }
+    }
+
+    return storeScrapedReviews(reviews, location, 'cu');
+  } catch(e) {
+    console.error('[CUSTPLACE SYNC]', e.message);
+    return [];
+  }
+}
+
+// ─────────────────────────────────────────
+// GLASSDOOR — Scraper (avis employés)
+// ─────────────────────────────────────────
+
+async function fetchGlassdoorReviews(location) {
+  if (!location.platform_url) return [];
+  try {
+    const res = await fetch(location.platform_url, { headers: SCRAPE_HEADERS });
+    if (!res.ok) return [];
+    const html = await res.text();
+    const reviews = extractJsonLdReviews(html);
+
+    if (reviews.length === 0) {
+      // Glassdoor injecte parfois les données dans Apollo state
+      const apolloMatch = html.match(/window\.__APOLLO_STATE__\s*=\s*({[\s\S]*?});<\/script>/);
+      if (apolloMatch) {
+        try {
+          const state = JSON.parse(apolloMatch[1]);
+          const parsed = [];
+          for (const key of Object.keys(state)) {
+            const item = state[key];
+            if (item?.pros || item?.cons) {
+              parsed.push({
+                stars: Math.round(parseFloat(item.ratingOverall || item.rating || 3)),
+                author: item.jobTitle || 'Employé',
+                text: [item.pros, item.cons].filter(Boolean).join(' — ')
+              });
+            }
+          }
+          if (parsed.length > 0) return storeScrapedReviews(parsed.slice(0, 20), location, 'gl');
+        } catch(e2) {}
+      }
+    }
+
+    return storeScrapedReviews(reviews, location, 'gl');
+  } catch(e) {
+    console.error('[GLASSDOOR SYNC]', e.message);
+    return [];
+  }
+}
+
+// ─────────────────────────────────────────
+// INDEED — Scraper (avis employeurs)
+// ─────────────────────────────────────────
+
+async function fetchIndeedReviews(location) {
+  if (!location.platform_url) return [];
+  try {
+    const res = await fetch(location.platform_url, { headers: SCRAPE_HEADERS });
+    if (!res.ok) return [];
+    const html = await res.text();
+    const reviews = extractJsonLdReviews(html);
+
+    if (reviews.length === 0) {
+      // Indeed embed JSON data
+      const dataMatch = html.match(/window\.mosaic\.providerData\["mosaic-provider-reviews"\]\s*=\s*({[\s\S]*?});/);
+      if (dataMatch) {
+        try {
+          const data = JSON.parse(dataMatch[1]);
+          const rawReviews = data?.metaData?.reviewData?.reviews || [];
+          const parsed = rawReviews.map(r => ({
+            stars: Math.round(parseFloat(r.rating?.overall || 3)),
+            author: r.jobTitle?.text || 'Employé',
+            text: [r.text?.pros, r.text?.cons].filter(Boolean).join(' — ')
+          })).filter(r => r.text);
+          return storeScrapedReviews(parsed.slice(0, 20), location, 'id');
+        } catch(e2) {}
+      }
+    }
+
+    return storeScrapedReviews(reviews, location, 'id');
+  } catch(e) {
+    console.error('[INDEED SYNC]', e.message);
+    return [];
+  }
+}
+
+// ─────────────────────────────────────────
+// DOCTOLIB — Scraper (avis patients)
+// ─────────────────────────────────────────
+
+async function fetchDoctolibReviews(location) {
+  if (!location.platform_url) return [];
+  try {
+    const res = await fetch(location.platform_url, { headers: SCRAPE_HEADERS });
+    if (!res.ok) return [];
+    const html = await res.text();
+    const reviews = extractJsonLdReviews(html);
+
+    if (reviews.length === 0) {
+      // Doctolib — extraire depuis les données Next.js
+      const nextDataMatch = html.match(/<script id="__NEXT_DATA__" type="application\/json">([\s\S]*?)<\/script>/);
+      if (nextDataMatch) {
+        try {
+          const nextData = JSON.parse(nextDataMatch[1]);
+          const rawReviews = nextData?.props?.pageProps?.reviews || nextData?.props?.pageProps?.doctor?.reviews || [];
+          const parsed = rawReviews.map(r => ({
+            stars: Math.round(parseFloat(r.rating || r.note || 4)),
+            author: r.firstName || r.author || 'Patient',
+            text: r.comment || r.text || ''
+          })).filter(r => r.text);
+          return storeScrapedReviews(parsed.slice(0, 20), location, 'do');
+        } catch(e2) {}
+      }
+
+      // Fallback regex
+      const ratingMatches = [...html.matchAll(/data-rating="(\d+)"/g)];
+      const commentMatches = [...html.matchAll(/class="[^"]*review-comment[^"]*"[^>]*>([^<]{20,})</g)];
+      const parsed = [];
+      for (let i = 0; i < Math.min(commentMatches.length, 20); i++) {
+        parsed.push({
+          stars: parseInt(ratingMatches[i]?.[1] || 4),
+          author: 'Patient',
+          text: commentMatches[i][1].trim()
+        });
+      }
+      return storeScrapedReviews(parsed, location, 'do');
+    }
+
+    return storeScrapedReviews(reviews, location, 'do');
+  } catch(e) {
+    console.error('[DOCTOLIB SYNC]', e.message);
+    return [];
+  }
+}
+
+// ─────────────────────────────────────────
+// HOLIDAYCHECK — Scraper (avis hôtels)
+// ─────────────────────────────────────────
+
+async function fetchHolidaycheckReviews(location) {
+  if (!location.platform_url) return [];
+  try {
+    const res = await fetch(location.platform_url, { headers: SCRAPE_HEADERS });
+    if (!res.ok) return [];
+    const html = await res.text();
+    const reviews = extractJsonLdReviews(html);
+
+    if (reviews.length === 0) {
+      const textMatches = [...html.matchAll(/class="[^"]*review-text[^"]*"[^>]*>([\s\S]{20,200}?)<\/[a-z]+>/gi)];
+      const ratingMatches = [...html.matchAll(/data-score="([\d.]+)"/g)];
+      const authorMatches = [...html.matchAll(/class="[^"]*reviewer-name[^"]*"[^>]*>([^<]+)</gi)];
+
+      const parsed = textMatches.slice(0, 20).map((m, i) => ({
+        text: m[1].replace(/<[^>]+>/g, '').trim(),
+        stars: Math.min(5, Math.max(1, Math.round(parseFloat(ratingMatches[i]?.[1] || 4) / 2))),
+        author: authorMatches[i]?.[1]?.trim() || 'Voyageur'
+      })).filter(r => r.text);
+      return storeScrapedReviews(parsed, location, 'hc');
+    }
+
+    return storeScrapedReviews(reviews, location, 'hc');
+  } catch(e) {
+    console.error('[HOLIDAYCHECK SYNC]', e.message);
+    return [];
+  }
+}
+
+// ─────────────────────────────────────────
+// CDISCOUNT — Scraper (avis produits)
+// ─────────────────────────────────────────
+
+async function fetchCdiscountReviews(location) {
+  if (!location.platform_url) return [];
+  try {
+    const res = await fetch(location.platform_url, { headers: SCRAPE_HEADERS });
+    if (!res.ok) return [];
+    const html = await res.text();
+    const reviews = extractJsonLdReviews(html);
+
+    if (reviews.length === 0) {
+      // Cdiscount — JSON embarqué
+      const jsonMatch = html.match(/var\s+reviewsData\s*=\s*({[\s\S]*?});/);
+      if (jsonMatch) {
+        try {
+          const data = JSON.parse(jsonMatch[1]);
+          const raw = data?.Reviews || data?.reviews || [];
+          const parsed = raw.map(r => ({
+            stars: Math.round(parseFloat(r.Rating || r.rating || 3)),
+            author: r.AuthorNickname || r.author || 'Client',
+            text: r.ReviewText || r.text || ''
+          })).filter(r => r.text);
+          return storeScrapedReviews(parsed.slice(0, 20), location, 'cd');
+        } catch(e2) {}
+      }
+
+      const textMatches = [...html.matchAll(/class="[^"]*review-body[^"]*"[^>]*>([\s\S]{20,300}?)<\/div>/gi)];
+      const ratingMatches = [...html.matchAll(/aria-label="(\d) étoile/g)];
+      const parsed = textMatches.slice(0, 20).map((m, i) => ({
+        text: m[1].replace(/<[^>]+>/g, '').trim(),
+        stars: parseInt(ratingMatches[i]?.[1] || 4),
+        author: 'Client'
+      })).filter(r => r.text);
+      return storeScrapedReviews(parsed, location, 'cd');
+    }
+
+    return storeScrapedReviews(reviews, location, 'cd');
+  } catch(e) {
+    console.error('[CDISCOUNT SYNC]', e.message);
+    return [];
+  }
+}
+
+// ─────────────────────────────────────────
+// APP STORE — RSS Apple (gratuit, sans token)
+// ─────────────────────────────────────────
+
+async function fetchAppStoreReviews(location) {
+  if (!location.platform_url) return [];
+
+  try {
+    // Extraire App ID depuis l'URL (ex: /app/monapp/id123456789)
+    const appIdMatch = location.platform_url.match(/\/id(\d+)/);
+    const appId = appIdMatch ? appIdMatch[1] : null;
+
+    if (appId) {
+      // Apple RSS feed — gratuit, pas de token requis
+      const rssUrl = `https://itunes.apple.com/fr/rss/customerreviews/id=${appId}/sortBy=mostRecent/json`;
+      const res = await fetch(rssUrl, { headers: { 'User-Agent': SCRAPE_HEADERS['User-Agent'] } });
+
+      if (res.ok) {
+        const data = await res.json();
+        const entries = data?.feed?.entry || [];
+        const reviews = entries.slice(1).map(e => ({ // slice(1) pour ignorer la 1ère entrée (info app)
+          stars: parseInt(e['im:rating']?.label || 4),
+          author: e.author?.name?.label || 'Utilisateur',
+          text: e.content?.label || e.title?.label || ''
+        })).filter(r => r.text);
+        return storeScrapedReviews(reviews, location, 'as');
+      }
+    }
+
+    // Fallback scraping
+    const res = await fetch(location.platform_url, { headers: SCRAPE_HEADERS });
+    if (!res.ok) return [];
+    const html = await res.text();
+    return storeScrapedReviews(extractJsonLdReviews(html), location, 'as');
+  } catch(e) {
+    console.error('[APPSTORE SYNC]', e.message);
+    return [];
+  }
+}
+
+// ─────────────────────────────────────────
+// PLAY STORE — Scraper Google Play
+// ─────────────────────────────────────────
+
+async function fetchPlayStoreReviews(location) {
+  if (!location.platform_url) return [];
+
+  try {
+    // Extraire package name depuis l'URL
+    const pkgMatch = location.platform_url.match(/id=([a-zA-Z0-9_.]+)/);
+    const pkg = pkgMatch ? pkgMatch[1] : null;
+
+    if (pkg) {
+      // Google Play unofficial JSON API
+      const apiUrl = `https://play.google.com/store/getreviews?id=${pkg}&reviewSortOrder=0&reviewType=1&pageNum=0&xhr=1`;
+      const res = await fetch(apiUrl, {
+        method: 'POST',
+        headers: { ...SCRAPE_HEADERS, 'Content-Type': 'application/x-www-form-urlencoded' }
+      });
+
+      if (res.ok) {
+        const text = await res.text();
+        const reviews = [];
+        const ratingRe = /"(\d)"[^}]{0,50}"([^"]{10,300})"/g;
+        let m;
+        while ((m = ratingRe.exec(text)) !== null && reviews.length < 20) {
+          reviews.push({ stars: parseInt(m[1]), author: 'Utilisateur', text: m[2] });
+        }
+        if (reviews.length > 0) return storeScrapedReviews(reviews, location, 'ps');
+      }
+    }
+
+    // Fallback scraping de la page
+    const res = await fetch(location.platform_url, { headers: SCRAPE_HEADERS });
+    if (!res.ok) return [];
+    const html = await res.text();
+    return storeScrapedReviews(extractJsonLdReviews(html), location, 'ps');
+  } catch(e) {
+    console.error('[PLAYSTORE SYNC]', e.message);
     return [];
   }
 }
