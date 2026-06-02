@@ -184,7 +184,6 @@ input:checked + .slider:before{transform:translateX(20px)}
       <div class="sidebar-title">Mes établissements</div>
       <div id="locations-list"></div>
       <button class="btn-connect" onclick="connectGoogle()">🔵 Connecter Google</button>
-      <button class="btn-connect" onclick="connectTrustpilot()" style="margin-top:.4rem;background:linear-gradient(135deg,#00b67a,#007a52)">⭐ Connecter Trustpilot</button>
     <button class="btn-connect" onclick="refreshLocations()" style="margin-top:.4rem;background:#1a1a2e;border:1px solid #f59e0b;color:#f59e0b;font-size:.8rem">🔄 Sync établissements</button>
     </div>
   </div>
@@ -769,23 +768,7 @@ const PLATFORM_DEFS = {
   google:      { name: 'Google My Business', icon: '🔵', desc: 'Connectez via OAuth', type: 'oauth' },
   trustpilot:  { name: 'Trustpilot',         icon: '⭐', desc: 'Connectez via OAuth', type: 'oauth' },
   tripadvisor: { name: 'TripAdvisor',        icon: '🧭', desc: 'URL de votre fiche', type: 'url', placeholder: 'https://www.tripadvisor.fr/Restaurant_Review-...' },
-  facebook:    { name: 'Facebook',           icon: '📘', desc: 'URL + Page Access Token', type: 'url+token', placeholder: 'https://www.facebook.com/votre-page', tokenLabel: 'Page Access Token' },
-  pagesjaunes: { name: 'Pages Jaunes',       icon: '📒', desc: 'URL de votre fiche', type: 'url', placeholder: 'https://www.pagesjaunes.fr/...' },
-  thefork:     { name: 'TheFork',            icon: '🍽️', desc: 'URL de votre restaurant', type: 'url', placeholder: 'https://www.thefork.fr/restaurant/...' },
-  booking:     { name: 'Booking.com',        icon: '🏨', desc: 'URL de votre établissement', type: 'url', placeholder: 'https://www.booking.com/hotel/fr/...' },
-  airbnb:      { name: 'Airbnb',             icon: '🏠', desc: 'URL de votre annonce', type: 'url', placeholder: 'https://www.airbnb.fr/rooms/...' },
-  avisverifies:{ name: 'Avis Vérifiés',      icon: '✅', desc: 'URL de votre page avis', type: 'url', placeholder: 'https://www.avis-verifies.com/...' },
-  amazon:       { name: 'Amazon Seller',      icon: '📦', desc: 'URL de vos avis produit',    type: 'url', placeholder: 'https://www.amazon.fr/product-reviews/...' },
-  yelp:         { name: 'Yelp',              icon: '🔵', desc: 'URL + Yelp API Key (gratuit)', type: 'url+token', placeholder: 'https://www.yelp.fr/biz/votre-business', tokenLabel: 'Yelp API Key (optionnel)' },
-  custplace:    { name: 'Custplace',         icon: '💬', desc: 'URL de votre page avis',     type: 'url', placeholder: 'https://www.custplace.com/...' },
-  glassdoor:    { name: 'Glassdoor',         icon: '💼', desc: 'URL de votre page entreprise', type: 'url', placeholder: 'https://www.glassdoor.fr/Avis/...' },
-  indeed:       { name: 'Indeed',            icon: '💼', desc: 'URL de votre page avis',     type: 'url', placeholder: 'https://fr.indeed.com/cmp/votre-entreprise/reviews' },
-  doctolib:     { name: 'Doctolib',          icon: '🏥', desc: 'URL de votre profil',        type: 'url', placeholder: 'https://www.doctolib.fr/...' },
-  holidaycheck: { name: 'Holidaycheck',      icon: '🏖️', desc: 'URL de votre établissement',  type: 'url', placeholder: 'https://www.holidaycheck.fr/h/...' },
-  cdiscount:    { name: 'Cdiscount',         icon: '🛍️', desc: 'URL de vos avis produit',    type: 'url', placeholder: 'https://www.cdiscount.com/...' },
-  appstore:     { name: 'App Store',         icon: '📱', desc: 'URL de votre app Apple',     type: 'url', placeholder: 'https://apps.apple.com/fr/app/.../id...' },
-  playstore:    { name: 'Play Store',        icon: '▶️', desc: 'URL de votre app Android',   type: 'url', placeholder: 'https://play.google.com/store/apps/details?id=...' }
-};
+  };
 
 let currentPlatformModal = null;
 
