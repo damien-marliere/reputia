@@ -1,7 +1,7 @@
 {
   "name": "reputia",
   "version": "1.0.0",
-  "description": "Réponses automatiques aux avis Google My Business avec IA",
+  "description": "R\u00e9ponses automatiques aux avis Google My Business avec IA",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -15,8 +15,8 @@
     "googleapis": "^140.0.1",
     "node-cron": "^3.0.3",
     "node-fetch": "^3.3.2",
-    "node-sqlite3-wasm": "^0.8.26",
     "nodemailer": "^6.10.1",
+    "pg": "^8.11.0",
     "resend": "^6.12.4",
     "stripe": "^22.2.0"
   },
