@@ -1470,7 +1470,7 @@ async function fetchGoogleReviews(location) {
       if (existing) continue;
 
       const starRating = starMap[review.starRating] || 0;
-      const status = review.reviewReply ? 'posted' : 'new';
+      const status = review.reviewReply ? 'posted' : review.reviewReply ? 'posted' : 'new';
       const inserted = await pool.query(
         'INSERT INTO reviews (location_id, google_review_id, reviewer_name, star_rating, comment, status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
         [location.id, reviewId, review.reviewer?.displayName || 'Anonyme', starRating, review.comment || '', status]
@@ -2398,7 +2398,6 @@ async function fetchAllGoogleReviewsPaginated(location) {
       const starMap = { ONE: 1, TWO: 2, THREE: 3, FOUR: 4, FIVE: 5 };
 
       for (const review of (data.reviews || [])) {
-        if (review.reviewReply) continue;
         const reviewId = review.reviewId || review.name;
         const existing = (await pool.query('SELECT id FROM reviews WHERE google_review_id = $1', [reviewId])).rows[0];
         if (existing) continue;
