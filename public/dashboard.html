@@ -175,6 +175,7 @@ input:checked + .slider:before{transform:translateX(20px)}
       <div class="nav-item" onclick="showView('integrations')" id="nav-integrations">
         <span class="icon">🔌</span> Intégrations
       </div>
+      <div class="nav-item" onclick="showView('console')" id="nav-console"><span class="icon">✨</span> Console IA</div>
       <div class="nav-item" onclick="showView('settings')" id="nav-settings">
         <span class="icon">⚙️</span> Paramètres
       </div>
@@ -243,7 +244,8 @@ input:checked + .slider:before{transform:translateX(20px)}
     </div>
 
     <!-- VIEW: SETTINGS -->
-    <div id="view-settings" style="display:none">
+    <div id="view-console" style="display:none"><h1 style="font-size:1.6rem;margin:0 0 .3rem">✨ Console IA — Répondez à tous vos avis</h1><p style="color:#9aa;margin:0 0 1.2rem;max-width:760px">Collez un avis de n'importe quelle plateforme (TripAdvisor, Trustpilot, Facebook, Pages Jaunes…), générez une réponse parfaite avec l'IA, puis copiez-la pour la publier sur le site concerné.</p><div style="background:#15151f;border:1px solid #262636;border-radius:14px;padding:1.2rem;max-width:760px"><label style="display:block;color:#cfcfe0;font-weight:600;margin:0 0 .4rem">Avis du client</label><textarea id="console-text" rows="5" placeholder="Collez ici l'avis du client..." style="width:100%;box-sizing:border-box;background:#0f0f17;border:1px solid #2a2a3c;border-radius:10px;color:#fff;padding:.8rem;font:inherit;resize:vertical"></textarea><div style="display:flex;gap:1rem;flex-wrap:wrap;margin:.9rem 0"><div><label style="display:block;color:#cfcfe0;font-weight:600;font-size:.85rem;margin-bottom:.3rem">Note</label><select id="console-rating" style="background:#0f0f17;border:1px solid #2a2a3c;border-radius:8px;color:#fff;padding:.5rem"><option value="5">★★★★★ (5)</option><option value="4">★★★★ (4)</option><option value="3">★★★ (3)</option><option value="2">★★ (2)</option><option value="1">★ (1)</option></select></div><div><label style="display:block;color:#cfcfe0;font-weight:600;font-size:.85rem;margin-bottom:.3rem">Ton</label><select id="console-tone" style="background:#0f0f17;border:1px solid #2a2a3c;border-radius:8px;color:#fff;padding:.5rem"><option value="professionnel">Professionnel</option><option value="chaleureux">Chaleureux</option><option value="elegant">Élégant</option><option value="decontracte">Décontracté</option></select></div></div><button onclick="generateConsole(this)" style="background:linear-gradient(135deg,#f97316,#ef4444);border:none;color:#111;font-weight:700;padding:.7rem 1.3rem;border-radius:10px;cursor:pointer">✨ Générer la réponse</button><div id="console-result" style="display:none;margin-top:1.2rem"><label style="display:block;color:#cfcfe0;font-weight:600;margin:0 0 .4rem">Réponse générée</label><textarea id="console-reply" rows="5" style="width:100%;box-sizing:border-box;background:#0f0f17;border:1px solid #2a2a3c;border-radius:10px;color:#fff;padding:.8rem;font:inherit;resize:vertical"></textarea><button onclick="copyConsole()" id="console-copy" style="margin-top:.6rem;background:#1a1a2e;border:1px solid #f59e0b;color:#f59e0b;font-weight:700;padding:.6rem 1.1rem;border-radius:10px;cursor:pointer">📋 Copier</button></div></div></div>
+      <div id="view-settings" style="display:none">
       <div class="panel" style="max-width:600px">
         <div class="panel-header"><div class="panel-title">Clé API Groq</div></div>
         <p style="font-size:.875rem;color:#6b7280;margin-bottom:1rem">
@@ -332,7 +334,7 @@ async function init() {
 // ─── NAVIGATION ─────────────────────────
 
 function showView(view) {
-  ['reviews', 'integrations', 'settings'].forEach(v => {
+  ['reviews', 'integrations', 'settings', 'console'].forEach(v => {
     const el = document.getElementById('view-' + v);
     if (el) el.style.display = view === v ? '' : 'none';
     const nav = document.getElementById('nav-' + v);
@@ -342,6 +344,9 @@ function showView(view) {
 }
 
 // ─── LOCATIONS ──────────────────────────
+
+async function generateConsole(btn){var txt=document.getElementById("console-text").value.trim();if(!txt){alert("Collez d'abord un avis.");return;}var old=btn.textContent;btn.textContent="⏳ Génération...";btn.disabled=true;try{var r=await fetch("/api/generate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:txt,rating:document.getElementById("console-rating").value,tone:document.getElementById("console-tone").value})});var d2=await r.json();if(d2.error){alert("Erreur : "+d2.error);}else{document.getElementById("console-reply").value=d2.response;document.getElementById("console-result").style.display="block";}}catch(e){alert("Erreur réseau");}btn.textContent=old;btn.disabled=false;}
+function copyConsole(){var ta=document.getElementById("console-reply");ta.select();try{navigator.clipboard.writeText(ta.value);}catch(e){document.execCommand("copy");}var b=document.getElementById("console-copy");var oo=b.textContent;b.textContent="✅ Copié !";setTimeout(function(){b.textContent=oo;},1500);}
 
 async function loadLocations() {
   const res = await fetch('/api/locations');
@@ -765,8 +770,6 @@ function getPlatformBadge(locName) {
 
 const PLATFORM_DEFS = {
   google:      { name: 'Google My Business', icon: '🔵', desc: 'Connectez via OAuth', type: 'oauth' },
-  trustpilot:  { name: 'Trustpilot',         icon: '⭐', desc: 'Connectez via OAuth', type: 'oauth' },
-  tripadvisor: { name: 'TripAdvisor',        icon: '🧭', desc: 'URL de votre fiche', type: 'url', placeholder: 'https://www.tripadvisor.fr/Restaurant_Review-...' },
   };
 
 let currentPlatformModal = null;
