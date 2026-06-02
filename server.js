@@ -1362,7 +1362,7 @@ async function fetchGoogleReviews(location) {
 
     // Essai gratuit : 10 derniers avis existants au maximum (les nouveaux sont illimités)
     const res = await fetch(
-      `https://mybusiness.googleapis.com/v4/${location.google_location_name}/reviews?pageSize=10`,
+      `https://mybusiness.googleapis.com/v4/${location.google_location_name}/reviews?pageSize=50`,
       { headers: { 'Authorization': `Bearer ${token}` } }
     );
 
@@ -1376,15 +1376,15 @@ async function fetchGoogleReviews(location) {
     const starMap = { ONE: 1, TWO: 2, THREE: 3, FOUR: 4, FIVE: 5 };
 
     for (const review of (data.reviews || [])) {
-      if (review.reviewReply) continue;
       const reviewId = review.reviewId || review.name;
       const existing = (await pool.query('SELECT id FROM reviews WHERE google_review_id = $1', [reviewId])).rows[0];
       if (existing) continue;
 
       const starRating = starMap[review.starRating] || 0;
+      const status = review.reviewReply ? 'posted' : 'new';
       const inserted = await pool.query(
         'INSERT INTO reviews (location_id, google_review_id, reviewer_name, star_rating, comment, status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
-        [location.id, reviewId, review.reviewer?.displayName || 'Anonyme', starRating, review.comment || '', 'new']
+        [location.id, reviewId, review.reviewer?.displayName || 'Anonyme', starRating, review.comment || '', status]
       );
       newReviews.push({ id: inserted.rows[0].id, star_rating: starRating, reviewer_name: review.reviewer?.displayName || 'Anonyme', comment: review.comment || '', location_id: location.id });
     }
