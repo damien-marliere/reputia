@@ -696,7 +696,7 @@ app.get('/auth/google/callback', async (req, res) => {
     try {
       // Utilise l'API v4 directement (évite mybusinessaccountmanagement qui a des quotas limités)
       const accessToken = tokens.access_token;
-      const acctRes = await fetch('https://mybusiness.googleapis.com/v4/accounts', {
+      const acctRes = await fetch('https://mybusinessaccountmanagement.googleapis.com/v1/accounts', {
         headers: { 'Authorization': `Bearer ${accessToken}` }
       });
       const acctData = await acctRes.json();
@@ -706,7 +706,7 @@ app.get('/auth/google/callback', async (req, res) => {
       for (const account of accounts) {
         const bizName = account.accountName || account.name || 'Mon établissement';
         try {
-          const locsRes = await fetch(`https://mybusiness.googleapis.com/v4/${account.name}/locations`, {
+          const locsRes = await fetch(`https://mybusinessbusinessinformation.googleapis.com/v1/${account.name}/locations?readMask=name,title`, {
             headers: { 'Authorization': `Bearer ${accessToken}` }
           });
           const locsData = await locsRes.json();
@@ -716,9 +716,9 @@ app.get('/auth/google/callback', async (req, res) => {
           for (const loc of locs) {
             const existing = (await pool.query('SELECT id FROM locations WHERE google_location_name = $1 AND user_id = $2', [loc.name, userId])).rows[0];
             if (existing) {
-              await pool.query('UPDATE locations SET access_token = $1, refresh_token = $2, business_name = $3 WHERE id = $4', [tokens.access_token || '', tokens.refresh_token || '', loc.locationName || bizName, existing.id]);
+              await pool.query('UPDATE locations SET access_token = $1, refresh_token = $2, business_name = $3 WHERE id = $4', [tokens.access_token || '', tokens.refresh_token || '', loc.title || bizName, existing.id]);
             } else {
-              await pool.query('INSERT INTO locations (user_id, google_location_name, business_name, access_token, refresh_token) VALUES ($1, $2, $3, $4, $5)', [userId, loc.name, loc.locationName || bizName, tokens.access_token || '', tokens.refresh_token || '']);
+              await pool.query('INSERT INTO locations (user_id, google_location_name, business_name, access_token, refresh_token) VALUES ($1, $2, $3, $4, $5)', [userId, loc.name, loc.title || bizName, tokens.access_token || '', tokens.refresh_token || '']);
               locationCount++;
             }
           }
@@ -1367,7 +1367,7 @@ async function postGoogleReply(location, replyText) {
     ? location.google_review_id
     : `${location.google_location_name}/reviews/${location.google_review_id}`;
 
-  const res = await fetch(`https://mybusiness.googleapis.com/v4/${reviewName}/reply`, {
+  const res = await fetch(`https://mybusinessreviews.googleapis.com/v1/${reviewName}/reply`, {
     method: 'PUT',
     headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ comment: replyText })
@@ -1426,13 +1426,13 @@ async function fetchGoogleReviews(location) {
     let locationName = location.google_location_name;
     if (locationName.startsWith('gmb_') || locationName.startsWith('accounts/')) {
       try {
-        const acctRes = await fetch('https://mybusiness.googleapis.com/v4/accounts', {
+        const acctRes = await fetch('https://mybusinessaccountmanagement.googleapis.com/v1/accounts', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         const acctData = await acctRes.json();
         const account = (acctData.accounts || [])[0];
         if (account) {
-          const locsRes = await fetch(`https://mybusiness.googleapis.com/v4/${account.name}/locations`, {
+          const locsRes = await fetch(`https://mybusinessbusinessinformation.googleapis.com/v1/${account.name}/locations?readMask=name,title`, {
             headers: { 'Authorization': `Bearer ${token}` }
           });
           const locsData = await locsRes.json();
@@ -1441,7 +1441,7 @@ async function fetchGoogleReviews(location) {
             locationName = loc.name;
             // Mettre à jour en base pour les prochaines fois
             await pool.query('UPDATE locations SET google_location_name = $1, business_name = $2 WHERE id = $3',
-              [loc.name, loc.locationName || location.business_name, location.id]);
+              [loc.name, loc.title || location.business_name, location.id]);
             console.log(`[SYNC-GOOGLE] Location résolue: ${loc.name}`);
           }
         }
@@ -1451,7 +1451,7 @@ async function fetchGoogleReviews(location) {
     }
 
     const res = await fetch(
-      `https://mybusiness.googleapis.com/v4/${locationName}/reviews?pageSize=50`,
+      `https://mybusinessreviews.googleapis.com/v1/${locationName}/reviews?pageSize=50`,
       { headers: { 'Authorization': `Bearer ${token}` } }
     );
 
@@ -1470,7 +1470,7 @@ async function fetchGoogleReviews(location) {
       if (existing) continue;
 
       const starRating = starMap[review.starRating] || 0;
-      const status = review.reviewReply ? 'posted' : review.reviewReply ? 'posted' : 'new';
+      const status = review.reviewReply ? 'posted' : 'new';
       const inserted = await pool.query(
         'INSERT INTO reviews (location_id, google_review_id, reviewer_name, star_rating, comment, status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
         [location.id, reviewId, review.reviewer?.displayName || 'Anonyme', starRating, review.comment || '', status]
@@ -2390,7 +2390,7 @@ async function fetchAllGoogleReviewsPaginated(location) {
     const token = tokenRes.token;
 
     do {
-      const url = `https://mybusiness.googleapis.com/v4/${location.google_location_name}/reviews?pageSize=50${pageToken ? `&pageToken=${pageToken}` : ''}`;
+      const url = `https://mybusinessreviews.googleapis.com/v1/${location.google_location_name}/reviews?pageSize=50${pageToken ? `&pageToken=${pageToken}` : ''}`;
       const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
       if (!res.ok) break;
 
