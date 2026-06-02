@@ -453,7 +453,7 @@ async function sendEmail(to, subject, html) {
   }
   try {
     const { error } = await resendClient.emails.send({
-      from: 'ReputIA <onboarding@resend.dev>',
+      from: 'ReputIA <contact@reputia.fr>',
       to,
       subject,
       html
