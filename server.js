@@ -694,45 +694,75 @@ app.get('/auth/google/callback', async (req, res) => {
     let locationCount = 0;
 
     try {
-      const accountMgmt = google.mybusinessaccountmanagement({ version: 'v1', auth: oauth2Client });
-      const accountsRes = await accountMgmt.accounts.list();
-      const accounts = accountsRes.data.accounts || [];
-      console.log('[OAuth] Comptes GMB:', accounts.length);
+      // Utilise l'API v4 directement (évite mybusinessaccountmanagement qui a des quotas limités)
+      const accessToken = tokens.access_token;
+      const acctRes = await fetch('https://mybusiness.googleapis.com/v4/accounts', {
+        headers: { 'Authorization': `Bearer ${accessToken}` }
+      });
+      const acctData = await acctRes.json();
+      const accounts = acctData.accounts || [];
+      console.log('[OAuth] Comptes GMB (v4):', accounts.length);
 
       for (const account of accounts) {
-        const locName = account.name;
-        const bizName = account.accountName || 'Mon établissement';
-
+        const bizName = account.accountName || account.name || 'Mon établissement';
         try {
-          const bizInfo = google.mybusinessbusinessinformation({ version: 'v1', auth: oauth2Client });
-          const locsRes = await bizInfo.accounts.locations.list({
-            parent: account.name,
-            readMask: 'name,title'
+          const locsRes = await fetch(`https://mybusiness.googleapis.com/v4/${account.name}/locations`, {
+            headers: { 'Authorization': `Bearer ${accessToken}` }
           });
-          const locs = locsRes.data.locations || [];
+          const locsData = await locsRes.json();
+          const locs = locsData.locations || [];
+          console.log(`[OAuth] Établissements pour ${account.name}:`, locs.length);
 
           for (const loc of locs) {
             const existing = (await pool.query('SELECT id FROM locations WHERE google_location_name = $1 AND user_id = $2', [loc.name, userId])).rows[0];
             if (existing) {
+              await pool.query('UPDATE locations SET access_token = $1, refresh_token = $2, business_name = $3 WHERE id = $4', [tokens.access_token || '', tokens.refresh_token || '', loc.locationName || bizName, existing.id]);
+            } else {
+              await pool.query('INSERT INTO locations (user_id, google_location_name, business_name, access_token, refresh_token) VALUES ($1, $2, $3, $4, $5)', [userId, loc.name, loc.locationName || bizName, tokens.access_token || '', tokens.refresh_token || '']);
+              locationCount++;
+            }
+          }
+
+          // Si pas de locations mais compte trouvé, utilise le nom du compte
+          if (locs.length === 0) {
+            const existing = (await pool.query('SELECT id FROM locations WHERE google_location_name = $1 AND user_id = $2', [account.name, userId])).rows[0];
+            if (existing) {
               await pool.query('UPDATE locations SET access_token = $1, refresh_token = $2 WHERE id = $3', [tokens.access_token || '', tokens.refresh_token || '', existing.id]);
             } else {
-              await pool.query('INSERT INTO locations (user_id, google_location_name, business_name, access_token, refresh_token) VALUES ($1, $2, $3, $4, $5)', [userId, loc.name, loc.title || bizName, tokens.access_token || '', tokens.refresh_token || '']);
+              await pool.query('INSERT INTO locations (user_id, google_location_name, business_name, access_token, refresh_token) VALUES ($1, $2, $3, $4, $5)', [userId, account.name, bizName, tokens.access_token || '', tokens.refresh_token || '']);
               locationCount++;
             }
           }
         } catch (e2) {
-          console.log('[OAuth] Étapes établissements ignorée:', e2.message);
-          const existing = (await pool.query('SELECT id FROM locations WHERE google_location_name = $1 AND user_id = $2', [locName, userId])).rows[0];
+          console.log('[OAuth] Erreur récupération établissements:', e2.message);
+          const existing = (await pool.query('SELECT id FROM locations WHERE google_location_name = $1 AND user_id = $2', [account.name, userId])).rows[0];
           if (existing) {
             await pool.query('UPDATE locations SET access_token = $1, refresh_token = $2 WHERE id = $3', [tokens.access_token || '', tokens.refresh_token || '', existing.id]);
           } else {
-            await pool.query('INSERT INTO locations (user_id, google_location_name, business_name, access_token, refresh_token) VALUES ($1, $2, $3, $4, $5)', [userId, locName, bizName, tokens.access_token || '', tokens.refresh_token || '']);
+            await pool.query('INSERT INTO locations (user_id, google_location_name, business_name, access_token, refresh_token) VALUES ($1, $2, $3, $4, $5)', [userId, account.name, bizName, tokens.access_token || '', tokens.refresh_token || '']);
             locationCount++;
           }
         }
       }
+
+      // Si aucun compte trouvé, fallback avec le token (la sync utilisera accounts/* en wildcard)
+      if (accounts.length === 0) {
+        console.log('[OAuth] Aucun compte trouvé, fallback refresh_token');
+        const existing = (await pool.query('SELECT id FROM locations WHERE user_id = $1 AND google_location_name NOT LIKE $2', [userId, 'gmb_%'])).rows[0];
+        if (existing) {
+          await pool.query('UPDATE locations SET access_token = $1, refresh_token = $2 WHERE id = $3', [tokens.access_token || '', tokens.refresh_token || '', existing.id]);
+        } else {
+          const gmb = (await pool.query('SELECT id FROM locations WHERE user_id = $1', [userId])).rows[0];
+          if (!gmb) {
+            await pool.query('INSERT INTO locations (user_id, google_location_name, business_name, access_token, refresh_token) VALUES ($1, $2, $3, $4, $5)', [userId, `accounts/self`, 'Mon établissement Google', tokens.access_token || '', tokens.refresh_token || '']);
+            locationCount = 1;
+          } else {
+            await pool.query('UPDATE locations SET access_token = $1, refresh_token = $2 WHERE user_id = $3', [tokens.access_token || '', tokens.refresh_token || '', userId]);
+          }
+        }
+      }
     } catch (e1) {
-      console.log('[OAuth] Liste comptes échouée:', e1.message);
+      console.log('[OAuth] Erreur liste comptes:', e1.message);
       const existing = (await pool.query('SELECT id FROM locations WHERE user_id = $1', [userId])).rows[0];
       if (!existing) {
         await pool.query('INSERT INTO locations (user_id, google_location_name, business_name, access_token, refresh_token) VALUES ($1, $2, $3, $4, $5)', [userId, `gmb_${userId}`, 'Mon établissement Google', tokens.access_token || '', tokens.refresh_token || '']);
@@ -1344,7 +1374,7 @@ async function fetchNewReviews(location) {
   if (name.startsWith('ps_'))  return fetchPlayStoreReviews(location);
 
   // Google (par défaut)
-  if (!location.refresh_token || name.startsWith('gmb_') || name.startsWith('manual_') || name.startsWith('demo_')) return [];
+  if (!location.refresh_token || name.startsWith('manual_') || name.startsWith('demo_')) return [];
   return fetchGoogleReviews(location);
 }
 
@@ -1360,9 +1390,36 @@ async function fetchGoogleReviews(location) {
     const tokenRes = await client.getAccessToken();
     const token = tokenRes.token;
 
-    // Essai gratuit : 10 derniers avis existants au maximum (les nouveaux sont illimités)
+    // Si la location est un fallback gmb_, chercher la vraie location via l'API v4
+    let locationName = location.google_location_name;
+    if (locationName.startsWith('gmb_') || locationName.startsWith('accounts/')) {
+      try {
+        const acctRes = await fetch('https://mybusiness.googleapis.com/v4/accounts', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const acctData = await acctRes.json();
+        const account = (acctData.accounts || [])[0];
+        if (account) {
+          const locsRes = await fetch(`https://mybusiness.googleapis.com/v4/${account.name}/locations`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          const locsData = await locsRes.json();
+          const loc = (locsData.locations || [])[0];
+          if (loc) {
+            locationName = loc.name;
+            // Mettre à jour en base pour les prochaines fois
+            await pool.query('UPDATE locations SET google_location_name = $1, business_name = $2 WHERE id = $3',
+              [loc.name, loc.locationName || location.business_name, location.id]);
+            console.log(`[SYNC-GOOGLE] Location résolue: ${loc.name}`);
+          }
+        }
+      } catch (resolveErr) {
+        console.error('[SYNC-GOOGLE] Erreur résolution location:', resolveErr.message);
+      }
+    }
+
     const res = await fetch(
-      `https://mybusiness.googleapis.com/v4/${location.google_location_name}/reviews?pageSize=50`,
+      `https://mybusiness.googleapis.com/v4/${locationName}/reviews?pageSize=50`,
       { headers: { 'Authorization': `Bearer ${token}` } }
     );
 
