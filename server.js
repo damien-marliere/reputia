@@ -91,7 +91,7 @@ function emailWelcome(email) {
     <p>Votre compte a bien été créé avec l'adresse <strong>${email}</strong>. Pendant 7 jours, ReputIA va répondre automatiquement à vos avis <strong>Google My Business</strong> à votre place.</p>
 
     <div class="highlight">
-      <p>📌 <strong>Rappel :</strong> L'essai gratuit couvre <strong>Google My Business uniquement</strong>. Les autres plateformes (Trustpilot, TripAdvisor, etc.) sont disponibles dès l'abonnement à 29€/mois.</p>
+      <p>📌 <strong>Rappel :</strong> L'essai gratuit couvre <strong>Google My Business uniquement</strong>. Les autres plateformes (Trustpilot, TripAdvisor, etc.) sont disponibles dès l'abonnement à 19€/mois.</p>
     </div>
 
     <h2>🔗 Comment connecter votre Google My Business ?</h2>
@@ -216,7 +216,7 @@ function emailDay5(email) {
       <p>💡 <strong>Le saviez-vous ?</strong> Les établissements qui répondent à leurs avis voient leur note Google augmenter en moyenne de <strong>+0.4 étoile en 60 jours</strong>. Ne laissez pas vos concurrents prendre de l'avance.</p>
     </div>
 
-    <h2>Ce que vous obtenez pour 29€/mois</h2>
+    <h2>Ce que vous obtenez pour 19€/mois</h2>
     <p>
       <span class="tag">✓ Google My Business</span>
       <span class="tag">✓ Trustpilot</span>
@@ -232,7 +232,7 @@ function emailDay5(email) {
     <div class="divider"></div>
 
     <div style="text-align:center">
-      <p style="font-size:16px;font-weight:700;color:#1a1a28;margin-bottom:6px">Continuez sans interruption — 29€/mois</p>
+      <p style="font-size:16px;font-weight:700;color:#1a1a28;margin-bottom:6px">Continuez sans interruption — 19€/mois</p>
       <p style="font-size:13px;color:#9ca3af;margin-bottom:16px">Sans engagement · Annulation en 1 clic · Remboursé 30 jours</p>
       <a href="https://buy.stripe.com/3cIfZjct64a9gSAeRx3VC09" class="btn">🔑 Activer mon abonnement →</a>
     </div>
@@ -254,7 +254,7 @@ function emailDay7(email) {
     <p>À partir de maintenant, chaque avis Google qui arrive sur votre fiche <strong>restera sans réponse</strong> — jusqu'à ce que vous le fassiez manuellement. Vos concurrents qui utilisent ReputIA, eux, répondent toujours en moins de 60 secondes.</p>
 
     <div class="highlight" style="background:linear-gradient(135deg,rgba(245,158,11,.08),rgba(249,115,22,.05));border-color:rgba(245,158,11,.25)">
-      <p>⭐ <strong>L'abonnement ReputIA à 29€/mois</strong>, c'est moins de <strong>1€ par jour</strong> pour ne plus jamais penser à vos avis. Réactivez en 1 clic — aucune nouvelle configuration nécessaire.</p>
+      <p>⭐ <strong>L'abonnement ReputIA à 19€/mois</strong>, c'est moins de <strong>1€ par jour</strong> pour ne plus jamais penser à vos avis. Réactivez en 1 clic — aucune nouvelle configuration nécessaire.</p>
     </div>
 
     <div class="stat-row">
@@ -267,7 +267,7 @@ function emailDay7(email) {
         <div class="stat-label">Avec abonnement<br>Réponse en &lt;60s</div>
       </div>
       <div class="stat">
-        <div class="stat-num">29€</div>
+        <div class="stat-num">19€</div>
         <div class="stat-label">Par mois<br>TTC · Sans engagement</div>
       </div>
     </div>
@@ -277,7 +277,7 @@ function emailDay7(email) {
     <div style="text-align:center">
       <p style="font-size:18px;font-weight:800;color:#1a1a28;margin-bottom:6px">Réactivez ReputIA maintenant</p>
       <p style="font-size:13px;color:#9ca3af;margin-bottom:20px">Votre configuration est sauvegardée · Remboursé 30 jours si insatisfait</p>
-      <a href="https://buy.stripe.com/3cIfZjct64a9gSAeRx3VC09" class="btn">🚀 Réactiver mon abonnement — 29€/mois</a>
+      <a href="https://buy.stripe.com/3cIfZjct64a9gSAeRx3VC09" class="btn">🚀 Réactiver mon abonnement — 19€/mois</a>
     </div>
 
     <p style="font-size:13px;color:#9ca3af;text-align:center;margin-top:16px">Vous avez une question ou un problème avec votre essai ?<br><a href="mailto:contact@reputia.fr" style="color:#f59e0b">Écrivez-nous</a> — on répond sous 24h.</p>
@@ -1027,6 +1027,20 @@ app.post('/api/reviews/:id/generate', requireAuth, async (req, res) => {
     res.json({ error: e.message });
   }
 });
+
+app.post("/api/generate", requireAuth, async (req, res) => {
+  const { text, rating, tone, reviewer, businessName, businessType } = req.body || {};
+  if (!text || !String(text).trim()) return res.status(400).json({ error: "Texte de l'avis requis" });
+  const groqKey = process.env.GROQ_API_KEY;
+  if (!groqKey) return res.json({ error: "Service IA temporairement indisponible" });
+  try {
+    const loc = (await pool.query("SELECT business_name, business_type, tone FROM locations WHERE user_id = $1 ORDER BY id LIMIT 1", [req.session.userId])).rows[0] || {};
+    const fakeReview = { comment: String(text), star_rating: parseInt(rating) || 5, tone: tone || loc.tone || "professionnel", reviewer_name: reviewer || "", business_name: businessName || loc.business_name || "", business_type: businessType || loc.business_type || "" };
+    const response = await generateResponse(fakeReview, groqKey);
+    res.json({ ok: true, response });
+  } catch (e) { res.json({ error: e.message }); }
+});
+
 
 app.post('/api/reviews/:id/post', requireAuth, async (req, res) => {
   const review = (await pool.query(`
