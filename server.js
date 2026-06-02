@@ -91,7 +91,7 @@ function emailWelcome(email) {
     <p>Votre compte a bien été créé avec l'adresse <strong>${email}</strong>. Pendant 7 jours, ReputIA va répondre automatiquement à vos avis <strong>Google My Business</strong> à votre place.</p>
 
     <div class="highlight">
-      <p>📌 <strong>Rappel :</strong> L'essai gratuit couvre <strong>Google My Business uniquement</strong>. Les autres plateformes (Trustpilot, TripAdvisor, etc.) sont disponibles dès l'abonnement à 19€/mois.</p>
+      <p>📌 <strong>Rappel :</strong> L'essai gratuit couvre <strong>Google My Business uniquement</strong>. Les autres plateformes (toutes via la Console IA) sont disponibles dès l'abonnement à 19€/mois.</p>
     </div>
 
     <h2>🔗 Comment connecter votre Google My Business ?</h2>
@@ -219,15 +219,10 @@ function emailDay5(email) {
     <h2>Ce que vous obtenez pour 19€/mois</h2>
     <p>
       <span class="tag">✓ Google My Business</span>
-      <span class="tag">✓ Trustpilot</span>
-      <span class="tag">✓ TripAdvisor</span>
-    </p>
+      </p>
     <p style="margin-top:10px">
-      <span class="tag">✓ Pages Jaunes</span>
-      <span class="tag">✓ Booking.com</span>
-      <span class="tag">✓ Airbnb</span>
-    </p>
-    <p style="margin-top:4px;font-size:13px;color:#6b7280">+ 6 autres plateformes · Réponses illimitées · Support 🇫🇷</p>
+      </p>
+    <p style="margin-top:4px;font-size:13px;color:#6b7280">via la Console IA · Réponses illimitées · Support 🇫🇷</p>
 
     <div class="divider"></div>
 
@@ -314,39 +309,11 @@ function emailOnboarding(email) {
       'Cliquez <strong>"Autoriser"</strong> → ReputIA détecte automatiquement vos établissements',
       'Sélectionnez votre établissement → choisissez votre ton → <strong>Activer</strong>'
     ])}
-    ${platformGuide('⭐','Trustpilot','auto',[
-      'Tableau de bord → <strong>Connecter Trustpilot</strong>',
-      'Entrez votre <strong>Business ID Trustpilot</strong> (trouvez-le dans votre profil Trustpilot Business)',
-      'Une fenêtre Trustpilot s\'ouvre → connectez-vous et autorisez l\'accès',
-      'Vos avis sont désormais surveillés et répondus automatiquement'
-    ])}
+    
 
-    <h2 style="margin:24px 0 12px">⚡ Plateformes semi-automatiques</h2>
-    <p style="font-size:13.5px;color:#6b7280;margin-bottom:16px">ReputIA détecte les avis et génère la réponse. Vous recevez un <strong>email avec la réponse prête</strong> — il suffit de la copier-coller en 10 secondes.</p>
-
-    ${platformGuide('🧭','TripAdvisor','semi',[
-      'Tableau de bord → <strong>Connecter TripAdvisor</strong> → collez l\'URL de votre page TripAdvisor',
-      'Exemple : <code style="background:#f1f5f9;padding:1px 6px;border-radius:4px;font-size:12px">https://www.tripadvisor.fr/Restaurant_Review-gXXX-dXXX</code>',
-      'ReputIA surveille les nouveaux avis et vous envoie la réponse générée par email'
-    ])}
-    ${platformGuide('📒','Pages Jaunes','semi',[
-      'Tableau de bord → <strong>Connecter Pages Jaunes</strong> → collez l\'URL de votre fiche',
-      'Exemple : <code style="background:#f1f5f9;padding:1px 6px;border-radius:4px;font-size:12px">https://www.pagesjaunes.fr/pros/XXXXXXX</code>',
-      'Vous recevrez un email dès qu\'un nouvel avis est détecté'
-    ])}
-    ${platformGuide('🏨','Booking.com','semi',[
-      'Tableau de bord → <strong>Connecter Booking</strong> → collez l\'URL de votre établissement Booking',
-      'Exemple : <code style="background:#f1f5f9;padding:1px 6px;border-radius:4px;font-size:12px">https://www.booking.com/hotel/fr/votre-hotel.fr.html</code>',
-      'La réponse IA vous est envoyée par email à chaque nouvel avis'
-    ])}
-    ${platformGuide('🍴','TheFork / LaFourchette','semi',[
-      'Tableau de bord → <strong>Connecter TheFork</strong> → collez l\'URL de votre restaurant',
-      'Exemple : <code style="background:#f1f5f9;padding:1px 6px;border-radius:4px;font-size:12px">https://www.thefork.fr/restaurant/votre-restaurant-rXXXXXX</code>'
-    ])}
-    ${platformGuide('🏠','Airbnb','semi',[
-      'Tableau de bord → <strong>Connecter Airbnb</strong> → collez l\'URL de votre logement Airbnb',
-      'Exemple : <code style="background:#f1f5f9;padding:1px 6px;border-radius:4px;font-size:12px">https://www.airbnb.fr/rooms/XXXXXXX</code>'
-    ])}
+    <h3 style="margin:30px 0 10px;font-size:17px;color:#111827">📋 Toutes les autres plateformes</h3>
+    <p style="margin:0;font-size:14px;color:#4b5563;line-height:1.6">Pour <strong>TripAdvisor, Trustpilot, Facebook, Pages Jaunes</strong> et toutes les autres : ouvrez la <strong>Console IA</strong> dans votre tableau de bord, collez l'avis, générez la réponse en 1 clic et copiez-la pour la publier. Simple, universel, sans configuration.</p>
+    
 
     <div style="height:1px;background:#e8e8f0;margin:28px 0"></div>
 
