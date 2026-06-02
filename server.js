@@ -1158,6 +1158,38 @@ app.post('/api/demo', requireAuth, async (req, res) => {
   res.json({ ok: true, added });
 });
 
+// ─────────────────────────────────────────
+// DEBUG + MANUAL LOCATION FIX
+// ─────────────────────────────────────────
+
+// Voir les locations en DB (debug)
+app.get('/api/debug/locations', requireAuth, async (req, res) => {
+  const locs = (await pool.query(
+    'SELECT id, google_location_name, business_name, active, created_at, (CASE WHEN refresh_token != \'\' AND refresh_token IS NOT NULL THEN true ELSE false END) as has_token FROM locations WHERE user_id = $1',
+    [req.session.userId]
+  )).rows;
+  res.json({ locations: locs });
+});
+
+// Fixer manuellement le google_location_name (ex: accounts/123/locations/456)
+app.post('/api/debug/set-location', requireAuth, async (req, res) => {
+  const { location_id, google_location_name } = req.body;
+  if (!google_location_name) return res.status(400).json({ error: 'google_location_name requis' });
+  
+  let query, params;
+  if (location_id) {
+    query = 'UPDATE locations SET google_location_name = $1 WHERE id = $2 AND user_id = $3';
+    params = [google_location_name, location_id, req.session.userId];
+  } else {
+    // Mettre à jour la première location Google (non-gmb_ si possible)
+    query = 'UPDATE locations SET google_location_name = $1 WHERE user_id = $2 AND (google_location_name LIKE \'gmb_%\' OR google_location_name NOT LIKE \'tp_%\' AND google_location_name NOT LIKE \'ta_%\' AND google_location_name NOT LIKE \'fb_%\')';
+    params = [google_location_name, req.session.userId];
+  }
+  
+  const result = await pool.query(query, params);
+  res.json({ ok: true, updated: result.rowCount, google_location_name });
+});
+
 app.post('/api/sync', requireAuth, async (req, res) => {
   const locations = (await pool.query('SELECT * FROM locations WHERE user_id = $1 AND active = 1', [req.session.userId])).rows;
   let newCount = 0;
