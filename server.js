@@ -1190,6 +1190,36 @@ app.post('/api/debug/set-location', requireAuth, async (req, res) => {
   res.json({ ok: true, updated: result.rowCount, google_location_name });
 });
 
+// TEMP DEBUG - test Google APIs
+app.get("/api/debug/test-google-api", async (req, res) => {
+  if (req.query.secret !== "reputia2026debug") return res.status(403).json({ error: "forbidden" });
+  try {
+    const loc = (await pool.query("SELECT * FROM locations WHERE refresh_token != '' AND refresh_token IS NOT NULL AND active = 1 ORDER BY id LIMIT 1")).rows[0];
+    if (!loc) return res.json({ error: "no_location", all: (await pool.query("SELECT id, google_location_name FROM locations")).rows });
+    const client = await getGoogleClient(loc);
+    const t = (await client.getAccessToken()).token;
+    const acctRes = await fetch("https://mybusinessaccountmanagement.googleapis.com/v1/accounts", { headers: { Authorization: `Bearer ${t}` } });
+    const acctText = (await acctRes.text()).slice(0, 400);
+    const result = { db_location: loc.google_location_name, token_ok: !!t, accounts: { status: acctRes.status, body: acctText } };
+    if (acctRes.ok) {
+      const acc = (JSON.parse(acctText).accounts || [])[0];
+      if (acc) {
+        const locsRes = await fetch(`https://mybusinessbusinessinformation.googleapis.com/v1/${acc.name}/locations?readMask=name,title`, { headers: { Authorization: `Bearer ${t}` } });
+        const locsText = (await locsRes.text()).slice(0, 400);
+        result.locations = { status: locsRes.status, body: locsText };
+        if (locsRes.ok) {
+          const realLoc = (JSON.parse(locsText).locations || [])[0];
+          if (realLoc) {
+            const rRes = await fetch(`https://mybusinessreviews.googleapis.com/v1/${realLoc.name}/reviews?pageSize=5`, { headers: { Authorization: `Bearer ${t}` } });
+            result.reviews = { status: rRes.status, locationUsed: realLoc.name, body: (await rRes.text()).slice(0, 400) };
+          }
+        }
+      }
+    }
+    res.json(result);
+  } catch(e) { res.json({ error: e.message }); }
+});
+
 app.post('/api/sync', requireAuth, async (req, res) => {
   const locations = (await pool.query('SELECT * FROM locations WHERE user_id = $1 AND active = 1', [req.session.userId])).rows;
   let newCount = 0;
