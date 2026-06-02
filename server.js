@@ -1210,7 +1210,7 @@ app.get("/api/debug/test-google-api", async (req, res) => {
         if (locsRes.ok) {
           const realLoc = (JSON.parse(locsText).locations || [])[0];
           if (realLoc) {
-            const rRes = await fetch(`https://mybusinessreviews.googleapis.com/v1/${realLoc.name}/reviews?pageSize=5`, { headers: { Authorization: `Bearer ${t}` } });
+            const rRes = await fetch(`https://mybusiness.googleapis.com/v4/${await __gbp(realLoc.name, t)}/reviews?pageSize=5`, { headers: { Authorization: `Bearer ${t}` } });
             result.reviews = { status: rRes.status, locationUsed: realLoc.name, body: (await rRes.text()).slice(0, 400) };
           }
         }
@@ -1397,7 +1397,7 @@ async function postGoogleReply(location, replyText) {
     ? location.google_review_id
     : `${location.google_location_name}/reviews/${location.google_review_id}`;
 
-  const res = await fetch(`https://mybusinessreviews.googleapis.com/v1/${reviewName}/reply`, {
+  const res = await fetch(`https://mybusiness.googleapis.com/v4/${await __gbp(reviewName, token)}/reply`, {
     method: 'PUT',
     headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ comment: replyText })
@@ -1481,7 +1481,7 @@ async function fetchGoogleReviews(location) {
     }
 
     const res = await fetch(
-      `https://mybusinessreviews.googleapis.com/v1/${locationName}/reviews?pageSize=50`,
+      `https://mybusiness.googleapis.com/v4/${await __gbp(locationName, token)}/reviews?pageSize=50`,
       { headers: { 'Authorization': `Bearer ${token}` } }
     );
 
@@ -2420,7 +2420,7 @@ async function fetchAllGoogleReviewsPaginated(location) {
     const token = tokenRes.token;
 
     do {
-      const url = `https://mybusinessreviews.googleapis.com/v1/${location.google_location_name}/reviews?pageSize=50${pageToken ? `&pageToken=${pageToken}` : ''}`;
+      const url = `https://mybusiness.googleapis.com/v4/${await __gbp(location.google_location_name, token)}/reviews?pageSize=50${pageToken ? `&pageToken=${pageToken}` : ''}`;
       const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
       if (!res.ok) break;
 
@@ -2662,3 +2662,26 @@ app.listen(PORT, () => {
   ╚══════════════════════════════════╝
   `);
 });
+
+
+// FIX: avis/reponses Google via API v4 (mybusiness.googleapis.com) avec prefixe accounts/
+async function __gbp(name, token){
+  try{
+    if(!name) return name;
+    if(String(name).startsWith('accounts/')) return name;
+    const r = await fetch('https://mybusinessaccountmanagement.googleapis.com/v1/accounts', { headers: { Authorization: 'Bearer ' + token } });
+    const j = await r.json();
+    const a = (j.accounts || [])[0];
+    if(!a) return name;
+    let tail = name;
+    const li = String(name).indexOf('locations/');
+    if(li >= 0){ tail = String(name).slice(li); }
+    else {
+      const lr = await fetch('https://mybusinessbusinessinformation.googleapis.com/v1/' + a.name + '/locations?readMask=name,title', { headers: { Authorization: 'Bearer ' + token } });
+      const lj = await lr.json();
+      const l0 = (lj.locations || [])[0];
+      tail = l0 ? l0.name : name;
+    }
+    return a.name + '/' + tail;
+  }catch(e){ console.error('[gbp]', e.message); return name; }
+}
