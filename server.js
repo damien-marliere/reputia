@@ -2,7 +2,8 @@ require('dotenv').config();
 const express = require('express');
 const session = require('express-session');
 const { google } = require('googleapis');
-const { DatabaseSync } = require('node:sqlite');
+const { Pool } = require('pg');
+const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
 const bcrypt = require('bcryptjs');
 const cron = require('node-cron');
 const path = require('path');
@@ -501,49 +502,55 @@ const SCRAPE_HEADERS = {
 };
 
 // ─────────────────────────────────────────
-// BASE DE DONNÉES SQLite
+// BASE DE DONNÉES PostgreSQL
 // ─────────────────────────────────────────
-const db = new DatabaseSync('./reputia.db');
 
-db.exec(`CREATE TABLE IF NOT EXISTS users (
-  id           INTEGER PRIMARY KEY AUTOINCREMENT,
-  email        TEXT UNIQUE NOT NULL,
-  password     TEXT NOT NULL,
-  groq_key     TEXT DEFAULT '',
-  plan         TEXT DEFAULT 'trial',
-  created_at   DATETIME DEFAULT CURRENT_TIMESTAMP
-)`);
 
-db.exec(`CREATE TABLE IF NOT EXISTS locations (
-  id                    INTEGER PRIMARY KEY AUTOINCREMENT,
-  user_id               INTEGER REFERENCES users(id),
-  google_location_name  TEXT NOT NULL,
-  business_name         TEXT DEFAULT 'Mon établissement',
-  business_type         TEXT DEFAULT 'restaurant',
-  platform_url          TEXT DEFAULT '',
-  access_token          TEXT,
-  refresh_token         TEXT NOT NULL,
-  auto_respond          INTEGER DEFAULT 0,
-  tone                  TEXT DEFAULT 'professionnel',
-  active                INTEGER DEFAULT 1,
-  created_at            DATETIME DEFAULT CURRENT_TIMESTAMP
-)`);
-
-db.exec(`CREATE TABLE IF NOT EXISTS reviews (
-  id                 INTEGER PRIMARY KEY AUTOINCREMENT,
-  location_id        INTEGER REFERENCES locations(id),
-  google_review_id   TEXT UNIQUE NOT NULL,
-  reviewer_name      TEXT DEFAULT 'Anonyme',
-  star_rating        INTEGER DEFAULT 0,
-  comment            TEXT DEFAULT '',
-  generated_response TEXT,
-  status             TEXT DEFAULT 'new',
-  created_at         DATETIME DEFAULT CURRENT_TIMESTAMP,
-  responded_at       DATETIME
-)`);
-
-// Migrations pour colonnes éventuellement manquantes
-try { db.exec("ALTER TABLE locations ADD COLUMN platform_url TEXT DEFAULT ''") } catch(e) {}
+async function initDB() {
+  await pool.query(`CREATE TABLE IF NOT EXISTS users (
+    id           SERIAL PRIMARY KEY,
+    email        TEXT UNIQUE NOT NULL,
+    password     TEXT NOT NULL,
+    groq_key     TEXT DEFAULT '',
+    plan         TEXT DEFAULT 'trial',
+    created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`);
+  await pool.query(`CREATE TABLE IF NOT EXISTS locations (
+    id                    SERIAL PRIMARY KEY,
+    user_id               INTEGER REFERENCES users(id),
+    google_location_name  TEXT NOT NULL,
+    business_name         TEXT DEFAULT 'Mon établissement',
+    business_type         TEXT DEFAULT 'restaurant',
+    platform_url          TEXT DEFAULT '',
+    access_token          TEXT,
+    refresh_token         TEXT NOT NULL DEFAULT '',
+    auto_respond          INTEGER DEFAULT 0,
+    tone                  TEXT DEFAULT 'professionnel',
+    active                INTEGER DEFAULT 1,
+    created_at            TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`);
+  await pool.query(`CREATE TABLE IF NOT EXISTS reviews (
+    id                 SERIAL PRIMARY KEY,
+    location_id        INTEGER REFERENCES locations(id),
+    google_review_id   TEXT UNIQUE NOT NULL,
+    reviewer_name      TEXT DEFAULT 'Anonyme',
+    star_rating        INTEGER DEFAULT 0,
+    comment            TEXT DEFAULT '',
+    generated_response TEXT,
+    status             TEXT DEFAULT 'new',
+    created_at         TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    responded_at       TIMESTAMP
+  )`);
+  await pool.query(`CREATE TABLE IF NOT EXISTS email_log (
+    id         SERIAL PRIMARY KEY,
+    user_id    INTEGER REFERENCES users(id),
+    type       TEXT NOT NULL,
+    sent_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`);
+  // Migration colonnes manquantes
+  try { await pool.query("ALTER TABLE locations ADD COLUMN IF NOT EXISTS platform_url TEXT DEFAULT ''") } catch(e) {}
+}
+initDB().catch(console.error);
 
 // ─────────────────────────────────────────
 // GOOGLE OAUTH2
@@ -581,8 +588,8 @@ const requireAuth = (req, res, next) => {
   next();
 };
 
-const requireActivePlan = (req, res, next) => {
-  const user = db.prepare('SELECT plan FROM users WHERE id = ?').get(req.session.userId);
+const requireActivePlan = async (req, res, next) => {
+  const user = (await pool.query('SELECT plan FROM users WHERE id = $1', [req.session.userId])).rows[0];
   if (user && user.plan === 'expired') {
     return res.status(403).json({ error: 'Essai terminé', expired: true, stripeUrl: 'https://buy.stripe.com/3cIfZjct64a9gSAeRx3VC09' });
   }
@@ -600,13 +607,13 @@ app.post('/api/signup', async (req, res) => {
   }
   try {
     const hash = await bcrypt.hash(password, 10);
-    const result = db.prepare('INSERT INTO users (email, password) VALUES (?, ?)').run(email, hash);
-    req.session.userId = result.lastInsertRowid;
+    const result = await pool.query('INSERT INTO users (email, password) VALUES ($1, $2) RETURNING id', [email, hash]);
+    req.session.userId = result.rows[0].id;
     // Email de bienvenue
     sendEmail(email, '🎉 Bienvenue sur ReputIA — Connectez Google My Business maintenant', emailWelcome(email));
     res.json({ ok: true });
   } catch (e) {
-    if (e.message && e.message.includes('UNIQUE')) {
+    if (e.message && (e.message.includes('UNIQUE') || e.message.includes('unique'))) {
       res.json({ error: 'Cet email est déjà utilisé' });
     } else {
       res.json({ error: 'Erreur DB: ' + e.message });
@@ -616,7 +623,7 @@ app.post('/api/signup', async (req, res) => {
 
 app.post('/api/login', async (req, res) => {
   const { email, password } = req.body;
-  const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+  const user = (await pool.query('SELECT * FROM users WHERE email = $1', [email])).rows[0];
   if (!user || !(await bcrypt.compare(password, user.password))) {
     return res.json({ error: 'Email ou mot de passe incorrect' });
   }
@@ -629,10 +636,10 @@ app.post('/api/reset-password', async (req, res) => {
   if (!email || !new_password || new_password.length < 6) {
     return res.json({ error: 'Email et nouveau mot de passe (6 car. min) requis' });
   }
-  const user = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
+  const user = (await pool.query('SELECT id FROM users WHERE email = $1', [email])).rows[0];
   if (!user) return res.json({ error: 'Aucun compte avec cet email' });
   const hash = await bcrypt.hash(new_password, 10);
-  db.prepare('UPDATE users SET password = ? WHERE email = ?').run(hash, email);
+  await pool.query('UPDATE users SET password = $1 WHERE email = $2', [hash, email]);
   res.json({ ok: true });
 });
 
@@ -641,16 +648,16 @@ app.post('/api/logout', (req, res) => {
   res.json({ ok: true });
 });
 
-app.get('/api/me', requireAuth, (req, res) => {
-  const user = db.prepare('SELECT id, email, plan, groq_key FROM users WHERE id = ?').get(req.session.userId);
+app.get('/api/me', requireAuth, async (req, res) => {
+  const user = (await pool.query('SELECT id, email, plan, groq_key FROM users WHERE id = $1', [req.session.userId])).rows[0];
   if (!user) return res.status(401).json({ error: 'Session expirée' });
   if (user.plan === 'expired') return res.json({ ok: false, expired: true });
   res.json(user);
 });
 
-app.post('/api/settings', requireAuth, (req, res) => {
+app.post('/api/settings', requireAuth, async (req, res) => {
   const { groq_key } = req.body;
-  db.prepare('UPDATE users SET groq_key = ? WHERE id = ?').run(groq_key || '', req.session.userId);
+  await pool.query('UPDATE users SET groq_key = $1 WHERE id = $2', [groq_key || '', req.session.userId]);
   res.json({ ok: true });
 });
 
@@ -705,33 +712,33 @@ app.get('/auth/google/callback', async (req, res) => {
           const locs = locsRes.data.locations || [];
 
           for (const loc of locs) {
-            const existing = db.prepare('SELECT id FROM locations WHERE google_location_name = ? AND user_id = ?').get(loc.name, userId);
+            const existing = (await pool.query('SELECT id FROM locations WHERE google_location_name = $1 AND user_id = $2', [loc.name, userId])).rows[0];
             if (existing) {
-              db.prepare('UPDATE locations SET access_token = ?, refresh_token = ? WHERE id = ?').run(tokens.access_token || '', tokens.refresh_token || '', existing.id);
+              await pool.query('UPDATE locations SET access_token = $1, refresh_token = $2 WHERE id = $3', [tokens.access_token || '', tokens.refresh_token || '', existing.id]);
             } else {
-              db.prepare('INSERT INTO locations (user_id, google_location_name, business_name, access_token, refresh_token) VALUES (?, ?, ?, ?, ?)').run(userId, loc.name, loc.title || bizName, tokens.access_token || '', tokens.refresh_token || '');
+              await pool.query('INSERT INTO locations (user_id, google_location_name, business_name, access_token, refresh_token) VALUES ($1, $2, $3, $4, $5)', [userId, loc.name, loc.title || bizName, tokens.access_token || '', tokens.refresh_token || '']);
               locationCount++;
             }
           }
         } catch (e2) {
           console.log('[OAuth] Étapes établissements ignorée:', e2.message);
-          const existing = db.prepare('SELECT id FROM locations WHERE google_location_name = ? AND user_id = ?').get(locName, userId);
+          const existing = (await pool.query('SELECT id FROM locations WHERE google_location_name = $1 AND user_id = $2', [locName, userId])).rows[0];
           if (existing) {
-            db.prepare('UPDATE locations SET access_token = ?, refresh_token = ? WHERE id = ?').run(tokens.access_token || '', tokens.refresh_token || '', existing.id);
+            await pool.query('UPDATE locations SET access_token = $1, refresh_token = $2 WHERE id = $3', [tokens.access_token || '', tokens.refresh_token || '', existing.id]);
           } else {
-            db.prepare('INSERT INTO locations (user_id, google_location_name, business_name, access_token, refresh_token) VALUES (?, ?, ?, ?, ?)').run(userId, locName, bizName, tokens.access_token || '', tokens.refresh_token || '');
+            await pool.query('INSERT INTO locations (user_id, google_location_name, business_name, access_token, refresh_token) VALUES ($1, $2, $3, $4, $5)', [userId, locName, bizName, tokens.access_token || '', tokens.refresh_token || '']);
             locationCount++;
           }
         }
       }
     } catch (e1) {
       console.log('[OAuth] Liste comptes échouée:', e1.message);
-      const existing = db.prepare('SELECT id FROM locations WHERE user_id = ?').get(userId);
+      const existing = (await pool.query('SELECT id FROM locations WHERE user_id = $1', [userId])).rows[0];
       if (!existing) {
-        db.prepare('INSERT INTO locations (user_id, google_location_name, business_name, access_token, refresh_token) VALUES (?, ?, ?, ?, ?)').run(userId, `gmb_${userId}`, 'Mon établissement Google', tokens.access_token || '', tokens.refresh_token || '');
+        await pool.query('INSERT INTO locations (user_id, google_location_name, business_name, access_token, refresh_token) VALUES ($1, $2, $3, $4, $5)', [userId, `gmb_${userId}`, 'Mon établissement Google', tokens.access_token || '', tokens.refresh_token || '']);
         locationCount = 1;
       } else {
-        db.prepare('UPDATE locations SET access_token = ?, refresh_token = ? WHERE user_id = ?').run(tokens.access_token || '', tokens.refresh_token || '', userId);
+        await pool.query('UPDATE locations SET access_token = $1, refresh_token = $2 WHERE user_id = $3', [tokens.access_token || '', tokens.refresh_token || '', userId]);
       }
     }
 
@@ -785,13 +792,13 @@ app.get('/auth/trustpilot/callback', async (req, res) => {
     if (!businessUnitId) throw new Error('businessUnitId introuvable');
 
     const locName = `tp_${businessUnitId}`;
-    const existing = db.prepare('SELECT id FROM locations WHERE google_location_name = ? AND user_id = ?').get(locName, userId);
+    const existing = (await pool.query('SELECT id FROM locations WHERE google_location_name = $1 AND user_id = $2', [locName, userId])).rows[0];
     if (existing) {
-      db.prepare('UPDATE locations SET access_token = ?, refresh_token = ?, business_name = ? WHERE id = ?')
-        .run(tokens.access_token, tokens.refresh_token || '', bizName, existing.id);
+      await pool.query('UPDATE locations SET access_token = $1, refresh_token = $2, business_name = $3 WHERE id = $4',
+        [tokens.access_token, tokens.refresh_token || '', bizName, existing.id]);
     } else {
-      db.prepare('INSERT INTO locations (user_id, google_location_name, business_name, access_token, refresh_token) VALUES (?, ?, ?, ?, ?)')
-        .run(userId, locName, bizName, tokens.access_token, tokens.refresh_token || '');
+      await pool.query('INSERT INTO locations (user_id, google_location_name, business_name, access_token, refresh_token) VALUES ($1, $2, $3, $4, $5)',
+        [userId, locName, bizName, tokens.access_token, tokens.refresh_token || '']);
     }
     res.redirect('/dashboard.html?tp_connected=1');
   } catch (e) {
@@ -805,13 +812,13 @@ app.get('/auth/trustpilot/callback', async (req, res) => {
 // ─────────────────────────────────────────
 
 // GET /api/platforms — statut de chaque plateforme
-app.get('/api/platforms', requireAuth, requireActivePlan, (req, res) => {
+app.get('/api/platforms', requireAuth, requireActivePlan, async (req, res) => {
   const userId = req.session.userId;
   const result = {};
 
   // Google
-  const googleLoc = db.prepare(`
-    SELECT id FROM locations WHERE user_id = ? AND active = 1
+  const googleLoc = (await pool.query(`
+    SELECT id FROM locations WHERE user_id = $1 AND active = 1
     AND google_location_name NOT LIKE 'tp_%'
     AND google_location_name NOT LIKE 'ta_%'
     AND google_location_name NOT LIKE 'fb_%'
@@ -823,16 +830,16 @@ app.get('/api/platforms', requireAuth, requireActivePlan, (req, res) => {
     AND google_location_name NOT LIKE 'az_%'
     AND google_location_name NOT LIKE 'manual_%'
     AND google_location_name NOT LIKE 'demo_%'
-  `).get(userId);
+  `, [userId])).rows[0];
   result.google = { connected: !!googleLoc, type: 'oauth' };
 
   // Trustpilot
-  const tpLoc = db.prepare("SELECT id FROM locations WHERE user_id = ? AND active = 1 AND google_location_name LIKE 'tp_%'").get(userId);
+  const tpLoc = (await pool.query("SELECT id FROM locations WHERE user_id = $1 AND active = 1 AND google_location_name LIKE 'tp_%'", [userId])).rows[0];
   result.trustpilot = { connected: !!tpLoc, type: 'oauth' };
 
   // Autres plateformes URL-based
   for (const [key, cfg] of Object.entries(PLATFORM_CONFIG)) {
-    const loc = db.prepare(`SELECT id, platform_url, business_name FROM locations WHERE user_id = ? AND active = 1 AND google_location_name LIKE '${cfg.prefix}%'`).get(userId);
+    const loc = (await pool.query(`SELECT id, platform_url, business_name FROM locations WHERE user_id = $1 AND active = 1 AND google_location_name LIKE '${cfg.prefix}%'`, [userId])).rows[0];
     result[key] = {
       connected: !!loc,
       url: loc?.platform_url || '',
@@ -855,19 +862,19 @@ app.post('/api/platforms/connect', requireAuth, async (req, res) => {
 
   const bizName = business_name || `Mon établissement (${cfg.name})`;
 
-  const existing = db.prepare(`SELECT id FROM locations WHERE user_id = ? AND google_location_name LIKE '${cfg.prefix}%'`).get(userId);
+  const existing = (await pool.query(`SELECT id FROM locations WHERE user_id = $1 AND google_location_name LIKE '${cfg.prefix}%'`, [userId])).rows[0];
 
   if (existing) {
-    db.prepare('UPDATE locations SET platform_url = ?, access_token = ?, business_name = ?, active = 1 WHERE id = ?')
-      .run(url || '', token || '', bizName, existing.id);
+    await pool.query('UPDATE locations SET platform_url = $1, access_token = $2, business_name = $3, active = 1 WHERE id = $4',
+      [url || '', token || '', bizName, existing.id]);
   } else {
     const locName = `${cfg.prefix}${userId}_${Date.now()}`;
-    db.prepare('INSERT INTO locations (user_id, google_location_name, business_name, platform_url, access_token, refresh_token) VALUES (?, ?, ?, ?, ?, ?)')
-      .run(userId, locName, bizName, url || '', token || '', '');
+    await pool.query('INSERT INTO locations (user_id, google_location_name, business_name, platform_url, access_token, refresh_token) VALUES ($1, $2, $3, $4, $5, $6)',
+      [userId, locName, bizName, url || '', token || '', '']);
   }
 
   // Sync immédiat
-  const loc = db.prepare(`SELECT * FROM locations WHERE user_id = ? AND google_location_name LIKE '${cfg.prefix}%' AND active = 1`).get(userId);
+  const loc = (await pool.query(`SELECT * FROM locations WHERE user_id = $1 AND google_location_name LIKE '${cfg.prefix}%' AND active = 1`, [userId])).rows[0];
   let synced = 0;
   if (loc) {
     try {
@@ -889,7 +896,7 @@ app.post('/api/platforms/:platform/sync', requireAuth, async (req, res) => {
   const cfg = PLATFORM_CONFIG[platform];
   if (!cfg) return res.json({ error: 'Plateforme inconnue' });
 
-  const loc = db.prepare(`SELECT * FROM locations WHERE user_id = ? AND google_location_name LIKE '${cfg.prefix}%' AND active = 1`).get(userId);
+  const loc = (await pool.query(`SELECT * FROM locations WHERE user_id = $1 AND google_location_name LIKE '${cfg.prefix}%' AND active = 1`, [userId])).rows[0];
   if (!loc) return res.json({ error: 'Plateforme non connectée' });
 
   try {
@@ -901,14 +908,14 @@ app.post('/api/platforms/:platform/sync', requireAuth, async (req, res) => {
 });
 
 // DELETE /api/platforms/:platform — déconnecter
-app.delete('/api/platforms/:platform', requireAuth, (req, res) => {
+app.delete('/api/platforms/:platform', requireAuth, async (req, res) => {
   const { platform } = req.params;
   const userId = req.session.userId;
 
   const cfg = PLATFORM_CONFIG[platform];
   if (!cfg) return res.json({ error: 'Plateforme inconnue' });
 
-  db.prepare(`UPDATE locations SET active = 0 WHERE user_id = ? AND google_location_name LIKE '${cfg.prefix}%'`).run(userId);
+  await pool.query(`UPDATE locations SET active = 0 WHERE user_id = $1 AND google_location_name LIKE '${cfg.prefix}%'`, [userId]);
   res.json({ ok: true });
 });
 
@@ -916,25 +923,26 @@ app.delete('/api/platforms/:platform', requireAuth, (req, res) => {
 // ROUTES ÉTABLISSEMENTS
 // ─────────────────────────────────────────
 
-app.get('/api/locations', requireAuth, requireActivePlan, (req, res) => {
-  const locations = db.prepare(
-    'SELECT id, business_name, business_type, google_location_name, platform_url, auto_respond, tone, active, created_at FROM locations WHERE user_id = ? AND active = 1'
-  ).all(req.session.userId);
+app.get('/api/locations', requireAuth, requireActivePlan, async (req, res) => {
+  const locations = (await pool.query(
+    'SELECT id, business_name, business_type, google_location_name, platform_url, auto_respond, tone, active, created_at FROM locations WHERE user_id = $1 AND active = 1',
+    [req.session.userId]
+  )).rows;
   res.json(locations);
 });
 
-app.put('/api/locations/:id', requireAuth, (req, res) => {
-  const loc = db.prepare('SELECT id FROM locations WHERE id = ? AND user_id = ?').get(req.params.id, req.session.userId);
+app.put('/api/locations/:id', requireAuth, async (req, res) => {
+  const loc = (await pool.query('SELECT id FROM locations WHERE id = $1 AND user_id = $2', [req.params.id, req.session.userId])).rows[0];
   if (!loc) return res.status(404).json({ error: 'Établissement non trouvé' });
 
   const { auto_respond, tone, business_type, business_name } = req.body;
-  db.prepare('UPDATE locations SET auto_respond = ?, tone = ?, business_type = ?, business_name = ? WHERE id = ?')
-    .run(auto_respond ? 1 : 0, tone || 'professionnel', business_type || 'restaurant', business_name || 'Mon établissement', req.params.id);
+  await pool.query('UPDATE locations SET auto_respond = $1, tone = $2, business_type = $3, business_name = $4 WHERE id = $5',
+    [auto_respond ? 1 : 0, tone || 'professionnel', business_type || 'restaurant', business_name || 'Mon établissement', req.params.id]);
   res.json({ ok: true });
 });
 
-app.delete('/api/locations/:id', requireAuth, (req, res) => {
-  db.prepare('UPDATE locations SET active = 0 WHERE id = ? AND user_id = ?').run(req.params.id, req.session.userId);
+app.delete('/api/locations/:id', requireAuth, async (req, res) => {
+  await pool.query('UPDATE locations SET active = 0 WHERE id = $1 AND user_id = $2', [req.params.id, req.session.userId]);
   res.json({ ok: true });
 });
 
@@ -942,38 +950,39 @@ app.delete('/api/locations/:id', requireAuth, (req, res) => {
 // ROUTES AVIS
 // ─────────────────────────────────────────
 
-app.get('/api/reviews', requireAuth, requireActivePlan, (req, res) => {
+app.get('/api/reviews', requireAuth, requireActivePlan, async (req, res) => {
   const { status, location_id } = req.query;
+  let paramIndex = 2;
   let query = `
     SELECT r.*, l.business_name, l.tone, l.business_type, l.google_location_name
     FROM reviews r
     JOIN locations l ON r.location_id = l.id
-    WHERE l.user_id = ?
+    WHERE l.user_id = $1
   `;
   const params = [req.session.userId];
 
-  if (status) { query += ' AND r.status = ?'; params.push(status); }
-  if (location_id) { query += ' AND r.location_id = ?'; params.push(location_id); }
+  if (status) { query += ` AND r.status = $${paramIndex++}`; params.push(status); }
+  if (location_id) { query += ` AND r.location_id = $${paramIndex++}`; params.push(location_id); }
 
   query += ' ORDER BY r.created_at DESC LIMIT 100';
-  res.json(db.prepare(query).all(...params));
+  res.json((await pool.query(query, params)).rows);
 });
 
-app.get('/api/stats', requireAuth, requireActivePlan, (req, res) => {
+app.get('/api/stats', requireAuth, requireActivePlan, async (req, res) => {
   const userId = req.session.userId;
-  const total    = db.prepare(`SELECT COUNT(*) as n FROM reviews r JOIN locations l ON r.location_id = l.id WHERE l.user_id = ?`).get(userId).n;
-  const posted   = db.prepare(`SELECT COUNT(*) as n FROM reviews r JOIN locations l ON r.location_id = l.id WHERE l.user_id = ? AND r.status = 'posted'`).get(userId).n;
-  const pending  = db.prepare(`SELECT COUNT(*) as n FROM reviews r JOIN locations l ON r.location_id = l.id WHERE l.user_id = ? AND r.status IN ('new','generated')`).get(userId).n;
-  const avgStars = db.prepare(`SELECT AVG(star_rating) as avg FROM reviews r JOIN locations l ON r.location_id = l.id WHERE l.user_id = ?`).get(userId).avg;
+  const total    = parseInt((await pool.query(`SELECT COUNT(*) as n FROM reviews r JOIN locations l ON r.location_id = l.id WHERE l.user_id = $1`, [userId])).rows[0].n);
+  const posted   = parseInt((await pool.query(`SELECT COUNT(*) as n FROM reviews r JOIN locations l ON r.location_id = l.id WHERE l.user_id = $1 AND r.status = 'posted'`, [userId])).rows[0].n);
+  const pending  = parseInt((await pool.query(`SELECT COUNT(*) as n FROM reviews r JOIN locations l ON r.location_id = l.id WHERE l.user_id = $1 AND r.status IN ('new','generated')`, [userId])).rows[0].n);
+  const avgStars = parseFloat((await pool.query(`SELECT AVG(star_rating) as avg FROM reviews r JOIN locations l ON r.location_id = l.id WHERE l.user_id = $1`, [userId])).rows[0].avg);
   res.json({ total, posted, pending, avgStars: avgStars ? Math.round(avgStars * 10) / 10 : 0 });
 });
 
 app.post('/api/reviews/:id/generate', requireAuth, async (req, res) => {
-  const review = db.prepare(`
+  const review = (await pool.query(`
     SELECT r.*, l.user_id, l.tone, l.business_name, l.business_type
     FROM reviews r JOIN locations l ON r.location_id = l.id
-    WHERE r.id = ? AND l.user_id = ?
-  `).get(req.params.id, req.session.userId);
+    WHERE r.id = $1 AND l.user_id = $2
+  `, [req.params.id, req.session.userId])).rows[0];
 
   if (!review) return res.status(404).json({ error: 'Avis non trouvé' });
 
@@ -982,7 +991,7 @@ app.post('/api/reviews/:id/generate', requireAuth, async (req, res) => {
 
   try {
     const response = await generateResponse(review, groqKey);
-    db.prepare('UPDATE reviews SET generated_response = ?, status = ? WHERE id = ?').run(response, 'generated', review.id);
+    await pool.query('UPDATE reviews SET generated_response = $1, status = $2 WHERE id = $3', [response, 'generated', review.id]);
     res.json({ ok: true, response });
   } catch (e) {
     res.json({ error: e.message });
@@ -990,14 +999,14 @@ app.post('/api/reviews/:id/generate', requireAuth, async (req, res) => {
 });
 
 app.post('/api/reviews/:id/post', requireAuth, async (req, res) => {
-  const review = db.prepare(`
+  const review = (await pool.query(`
     SELECT r.*, l.user_id, l.access_token, l.refresh_token, l.google_location_name, l.tone, l.business_name, l.business_type
     FROM reviews r JOIN locations l ON r.location_id = l.id
-    WHERE r.id = ? AND l.user_id = ?
-  `).get(req.params.id, req.session.userId);
+    WHERE r.id = $1 AND l.user_id = $2
+  `, [req.params.id, req.session.userId])).rows[0];
 
   if (!review) return res.status(404).json({ error: 'Avis non trouvé' });
-  if (!review.generated_response) return res.json({ error: 'Génère d\'abord une réponse' });
+  if (!review.generated_response) return res.json({ error: "Génère d'abord une réponse" });
 
   try {
     const name = review.google_location_name || '';
@@ -1009,26 +1018,26 @@ app.post('/api/reviews/:id/post', requireAuth, async (req, res) => {
       // Autres plateformes → marqué comme "posté" manuellement
       console.log(`[POST] Réponse marquée manuellement pour ${name}`);
     }
-    db.prepare('UPDATE reviews SET status = ?, responded_at = CURRENT_TIMESTAMP WHERE id = ?').run('posted', review.id);
+    await pool.query('UPDATE reviews SET status = $1, responded_at = CURRENT_TIMESTAMP WHERE id = $2', ['posted', review.id]);
     res.json({ ok: true });
   } catch (e) {
     res.json({ error: 'Erreur API: ' + e.message });
   }
 });
 
-app.put('/api/reviews/:id/response', requireAuth, (req, res) => {
+app.put('/api/reviews/:id/response', requireAuth, async (req, res) => {
   const { response } = req.body;
-  const review = db.prepare(`
-    SELECT r.id FROM reviews r JOIN locations l ON r.location_id = l.id WHERE r.id = ? AND l.user_id = ?
-  `).get(req.params.id, req.session.userId);
+  const review = (await pool.query(`
+    SELECT r.id FROM reviews r JOIN locations l ON r.location_id = l.id WHERE r.id = $1 AND l.user_id = $2
+  `, [req.params.id, req.session.userId])).rows[0];
   if (!review) return res.status(404).json({ error: 'Avis non trouvé' });
-  db.prepare('UPDATE reviews SET generated_response = ? WHERE id = ?').run(response, req.params.id);
+  await pool.query('UPDATE reviews SET generated_response = $1 WHERE id = $2', [response, req.params.id]);
   res.json({ ok: true });
 });
 
 app.post('/api/refresh-locations', requireAuth, async (req, res) => {
   const userId = req.session.userId;
-  const loc = db.prepare('SELECT * FROM locations WHERE user_id = ?').get(userId);
+  const loc = (await pool.query('SELECT * FROM locations WHERE user_id = $1', [userId])).rows[0];
   if (!loc || !loc.refresh_token) return res.json({ error: 'Pas de connexion Google trouvée' });
 
   try {
@@ -1053,57 +1062,57 @@ app.post('/api/refresh-locations', requireAuth, async (req, res) => {
       if (locsRes.ok) {
         const locsData = await locsRes.json();
         for (const location of (locsData.locations || [])) {
-          const existing = db.prepare('SELECT id FROM locations WHERE google_location_name = ? AND user_id = ?').get(location.name, userId);
+          const existing = (await pool.query('SELECT id FROM locations WHERE google_location_name = $1 AND user_id = $2', [location.name, userId])).rows[0];
           if (existing) {
-            db.prepare('UPDATE locations SET business_name = ? WHERE id = ?').run(location.title || 'Mon établissement', existing.id);
+            await pool.query('UPDATE locations SET business_name = $1 WHERE id = $2', [location.title || 'Mon établissement', existing.id]);
           } else {
-            db.prepare('INSERT INTO locations (user_id, google_location_name, business_name, access_token, refresh_token) VALUES (?, ?, ?, ?, ?)').run(userId, location.name, location.title || 'Mon établissement', loc.access_token || '', loc.refresh_token || '');
+            await pool.query('INSERT INTO locations (user_id, google_location_name, business_name, access_token, refresh_token) VALUES ($1, $2, $3, $4, $5)', [userId, location.name, location.title || 'Mon établissement', loc.access_token || '', loc.refresh_token || '']);
           }
           updated++;
         }
       } else {
-        db.prepare('UPDATE locations SET google_location_name = ?, business_name = ? WHERE user_id = ?').run(account.name, account.accountName || 'Mon établissement', userId);
+        await pool.query('UPDATE locations SET google_location_name = $1, business_name = $2 WHERE user_id = $3', [account.name, account.accountName || 'Mon établissement', userId]);
         updated++;
       }
     }
 
-    db.prepare("DELETE FROM locations WHERE user_id = ? AND google_location_name LIKE 'gmb_%'").run(userId);
+    await pool.query("DELETE FROM locations WHERE user_id = $1 AND google_location_name LIKE 'gmb_%'", [userId]);
     res.json({ ok: true, updated });
   } catch (e) {
     res.json({ error: e.message });
   }
 });
 
-app.post('/api/reviews/manual', requireAuth, (req, res) => {
+app.post('/api/reviews/manual', requireAuth, async (req, res) => {
   const userId = req.session.userId;
   const { reviewer_name, star_rating, comment } = req.body;
   if (!comment) return res.json({ error: 'Commentaire requis' });
 
-  let loc = db.prepare('SELECT id FROM locations WHERE user_id = ? AND active = 1').get(userId);
+  let loc = (await pool.query('SELECT id FROM locations WHERE user_id = $1 AND active = 1', [userId])).rows[0];
   if (!loc) {
-    db.prepare('INSERT INTO locations (user_id, google_location_name, business_name, access_token, refresh_token) VALUES (?, ?, ?, ?, ?)').run(userId, `manual_${userId}`, 'Mon établissement', '', '');
-    loc = db.prepare('SELECT id FROM locations WHERE user_id = ?').get(userId);
+    await pool.query('INSERT INTO locations (user_id, google_location_name, business_name, access_token, refresh_token) VALUES ($1, $2, $3, $4, $5)', [userId, `manual_${userId}`, 'Mon établissement', '', '']);
+    loc = (await pool.query('SELECT id FROM locations WHERE user_id = $1', [userId])).rows[0];
   }
 
   const id = `manual_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-  db.prepare('INSERT INTO reviews (location_id, google_review_id, reviewer_name, star_rating, comment, status) VALUES (?, ?, ?, ?, ?, ?)').run(loc.id, id, reviewer_name || 'Anonyme', parseInt(star_rating) || 5, comment, 'new');
+  await pool.query('INSERT INTO reviews (location_id, google_review_id, reviewer_name, star_rating, comment, status) VALUES ($1, $2, $3, $4, $5, $6)', [loc.id, id, reviewer_name || 'Anonyme', parseInt(star_rating) || 5, comment, 'new']);
   res.json({ ok: true });
 });
 
-app.post('/api/demo', requireAuth, (req, res) => {
+app.post('/api/demo', requireAuth, async (req, res) => {
   const userId = req.session.userId;
 
-  let loc = db.prepare('SELECT id FROM locations WHERE user_id = ?').get(userId);
+  let loc = (await pool.query('SELECT id FROM locations WHERE user_id = $1', [userId])).rows[0];
   if (!loc) {
-    db.prepare('INSERT INTO locations (user_id, google_location_name, business_name, business_type, access_token, refresh_token) VALUES (?, ?, ?, ?, ?, ?)')
-      .run(userId, `gmb_demo_${userId}`, 'Mon Restaurant', 'restaurant', '', '');
-    loc = db.prepare('SELECT id FROM locations WHERE user_id = ?').get(userId);
+    await pool.query('INSERT INTO locations (user_id, google_location_name, business_name, business_type, access_token, refresh_token) VALUES ($1, $2, $3, $4, $5, $6)',
+      [userId, `gmb_demo_${userId}`, 'Mon Restaurant', 'restaurant', '', '']);
+    loc = (await pool.query('SELECT id FROM locations WHERE user_id = $1', [userId])).rows[0];
   }
 
   const demoReviews = [
     { name: 'Sophie Martin', stars: 5, comment: 'Excellent restaurant, service impeccable et cuisine délicieuse !' },
-    { name: 'Jean-Pierre Dubois', stars: 2, comment: 'Déçu par l\'attente de 45 minutes alors que le restaurant était à moitié vide.' },
-    { name: 'Marie Leclerc', stars: 4, comment: 'Très bon repas dans l\'ensemble. L\'ambiance est sympa et les prix raisonnables.' },
+    { name: 'Jean-Pierre Dubois', stars: 2, comment: "Déçu par l'attente de 45 minutes alors que le restaurant était à moitié vide." },
+    { name: 'Marie Leclerc', stars: 4, comment: "Très bon repas dans l'ensemble. L'ambiance est sympa et les prix raisonnables." },
     { name: 'Thomas Bernard', stars: 5, comment: 'On y fête tous nos anniversaires depuis 5 ans ! Toujours aussi bien.' },
     { name: 'Isabelle Moreau', stars: 1, comment: 'Service désastreux, commande oubliée deux fois. Je ne recommande pas.' },
   ];
@@ -1112,7 +1121,7 @@ app.post('/api/demo', requireAuth, (req, res) => {
   for (const r of demoReviews) {
     const id = `demo_${Date.now()}_${Math.random().toString(36).slice(2)}`;
     try {
-      db.prepare('INSERT INTO reviews (location_id, google_review_id, reviewer_name, star_rating, comment, status) VALUES (?, ?, ?, ?, ?, ?)').run(loc.id, id, r.name, r.stars, r.comment, 'new');
+      await pool.query('INSERT INTO reviews (location_id, google_review_id, reviewer_name, star_rating, comment, status) VALUES ($1, $2, $3, $4, $5, $6)', [loc.id, id, r.name, r.stars, r.comment, 'new']);
       added++;
     } catch(e) {}
   }
@@ -1120,7 +1129,7 @@ app.post('/api/demo', requireAuth, (req, res) => {
 });
 
 app.post('/api/sync', requireAuth, async (req, res) => {
-  const locations = db.prepare('SELECT * FROM locations WHERE user_id = ? AND active = 1').all(req.session.userId);
+  const locations = (await pool.query('SELECT * FROM locations WHERE user_id = $1 AND active = 1', [req.session.userId])).rows;
   let newCount = 0;
 
   for (const loc of locations) {
@@ -1193,19 +1202,20 @@ function parseJsonLdReview(item) {
   };
 }
 
-function storeScrapedReviews(reviews, location, prefix) {
+async function storeScrapedReviews(reviews, location, prefix) {
   const newReviews = [];
   for (const r of reviews) {
     // ID stable basé sur contenu
     const stableId = `${prefix}_${hashStr((r.author + r.text).toLowerCase())}`;
-    const existing = db.prepare('SELECT id FROM reviews WHERE google_review_id = ?').get(stableId);
+    const existing = (await pool.query('SELECT id FROM reviews WHERE google_review_id = $1', [stableId])).rows[0];
     if (existing) continue;
 
     try {
-      const inserted = db.prepare(
-        'INSERT INTO reviews (location_id, google_review_id, reviewer_name, star_rating, comment, status) VALUES (?, ?, ?, ?, ?, ?)'
-      ).run(location.id, stableId, r.author, r.stars, r.text, 'new');
-      newReviews.push({ id: inserted.lastInsertRowid, reviewer_name: r.author, star_rating: r.stars, comment: r.text, location_id: location.id });
+      const inserted = await pool.query(
+        'INSERT INTO reviews (location_id, google_review_id, reviewer_name, star_rating, comment, status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
+        [location.id, stableId, r.author, r.stars, r.text, 'new']
+      );
+      newReviews.push({ id: inserted.rows[0].id, reviewer_name: r.author, star_rating: r.stars, comment: r.text, location_id: location.id });
     } catch(e) {}
   }
   console.log(`[SCRAPE:${prefix}] ${location.business_name}: ${newReviews.length} nouveaux avis`);
@@ -1275,12 +1285,12 @@ async function getGoogleClient(location) {
     access_token: location.access_token,
     refresh_token: location.refresh_token
   });
-  client.on('tokens', (tokens) => {
+  client.on('tokens', async (tokens) => {
     if (tokens.refresh_token) {
-      db.prepare('UPDATE locations SET refresh_token = ? WHERE google_location_name = ?').run(tokens.refresh_token, location.google_location_name);
+      await pool.query('UPDATE locations SET refresh_token = $1 WHERE google_location_name = $2', [tokens.refresh_token, location.google_location_name]);
     }
     if (tokens.access_token) {
-      db.prepare('UPDATE locations SET access_token = ? WHERE google_location_name = ?').run(tokens.access_token, location.google_location_name);
+      await pool.query('UPDATE locations SET access_token = $1 WHERE google_location_name = $2', [tokens.access_token, location.google_location_name]);
     }
   });
   return client;
@@ -1368,14 +1378,15 @@ async function fetchGoogleReviews(location) {
     for (const review of (data.reviews || [])) {
       if (review.reviewReply) continue;
       const reviewId = review.reviewId || review.name;
-      const existing = db.prepare('SELECT id FROM reviews WHERE google_review_id = ?').get(reviewId);
+      const existing = (await pool.query('SELECT id FROM reviews WHERE google_review_id = $1', [reviewId])).rows[0];
       if (existing) continue;
 
       const starRating = starMap[review.starRating] || 0;
-      const inserted = db.prepare(
-        'INSERT INTO reviews (location_id, google_review_id, reviewer_name, star_rating, comment, status) VALUES (?, ?, ?, ?, ?, ?)'
-      ).run(location.id, reviewId, review.reviewer?.displayName || 'Anonyme', starRating, review.comment || '', 'new');
-      newReviews.push({ id: inserted.lastInsertRowid, star_rating: starRating, reviewer_name: review.reviewer?.displayName || 'Anonyme', comment: review.comment || '', location_id: location.id });
+      const inserted = await pool.query(
+        'INSERT INTO reviews (location_id, google_review_id, reviewer_name, star_rating, comment, status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
+        [location.id, reviewId, review.reviewer?.displayName || 'Anonyme', starRating, review.comment || '', 'new']
+      );
+      newReviews.push({ id: inserted.rows[0].id, star_rating: starRating, reviewer_name: review.reviewer?.displayName || 'Anonyme', comment: review.comment || '', location_id: location.id });
     }
 
     console.log(`[SYNC-GOOGLE] ${location.business_name}: ${newReviews.length} nouveaux avis`);
@@ -1413,8 +1424,8 @@ async function fetchTrustpilotReviews(location) {
       const newTokens = await refreshRes.json();
       if (newTokens.access_token) {
         token = newTokens.access_token;
-        db.prepare('UPDATE locations SET access_token = ?, refresh_token = ? WHERE id = ?')
-          .run(newTokens.access_token, newTokens.refresh_token || location.refresh_token, location.id);
+        await pool.query('UPDATE locations SET access_token = $1, refresh_token = $2 WHERE id = $3',
+          [newTokens.access_token, newTokens.refresh_token || location.refresh_token, location.id]);
         res = await fetch(
           `https://api.trustpilot.com/v1/private/business-units/${bizId}/reviews?responded=false&perPage=100`,
           { headers: { 'Authorization': `Bearer ${token}` } }
@@ -1425,24 +1436,25 @@ async function fetchTrustpilotReviews(location) {
     if (!res.ok) { console.error(`[TP SYNC] ${res.status}`); return []; }
 
     const data = await res.json();
-    return processTrustpilotReviews(data.reviews || [], location);
+    return await processTrustpilotReviews(data.reviews || [], location);
   } catch (e) {
     console.error('[TP SYNC]', e.message);
     return [];
   }
 }
 
-function processTrustpilotReviews(reviews, location) {
+async function processTrustpilotReviews(reviews, location) {
   const newReviews = [];
   for (const review of reviews) {
     const reviewId = `tp_${review.id}`;
-    const existing = db.prepare('SELECT id FROM reviews WHERE google_review_id = ?').get(reviewId);
+    const existing = (await pool.query('SELECT id FROM reviews WHERE google_review_id = $1', [reviewId])).rows[0];
     if (existing) continue;
 
-    const inserted = db.prepare(
-      'INSERT INTO reviews (location_id, google_review_id, reviewer_name, star_rating, comment, status) VALUES (?, ?, ?, ?, ?, ?)'
-    ).run(location.id, reviewId, review.consumer?.displayName || review.author?.name || 'Anonyme', review.stars || 0, review.text || '', 'new');
-    newReviews.push({ id: inserted.lastInsertRowid, star_rating: review.stars || 0, reviewer_name: review.consumer?.displayName || 'Anonyme', comment: review.text || '', location_id: location.id });
+    const inserted = await pool.query(
+      'INSERT INTO reviews (location_id, google_review_id, reviewer_name, star_rating, comment, status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
+      [location.id, reviewId, review.consumer?.displayName || review.author?.name || 'Anonyme', review.stars || 0, review.text || '', 'new']
+    );
+    newReviews.push({ id: inserted.rows[0].id, star_rating: review.stars || 0, reviewer_name: review.consumer?.displayName || 'Anonyme', comment: review.text || '', location_id: location.id });
   }
   console.log(`[TP SYNC] ${location.business_name}: ${newReviews.length} nouveaux avis`);
   return newReviews;
@@ -1520,13 +1532,14 @@ async function fetchFacebookReviews(location) {
     const newReviews = [];
     for (const review of (data.data || [])) {
       const reviewId = `fb_${review.id || hashStr(review.created_time + review.reviewer?.id)}`;
-      const existing = db.prepare('SELECT id FROM reviews WHERE google_review_id = ?').get(reviewId);
+      const existing = (await pool.query('SELECT id FROM reviews WHERE google_review_id = $1', [reviewId])).rows[0];
       if (existing) continue;
 
-      const inserted = db.prepare(
-        'INSERT INTO reviews (location_id, google_review_id, reviewer_name, star_rating, comment, status) VALUES (?, ?, ?, ?, ?, ?)'
-      ).run(location.id, reviewId, review.reviewer?.name || 'Anonyme', review.rating || 5, review.review_text || '', 'new');
-      newReviews.push({ id: inserted.lastInsertRowid, reviewer_name: review.reviewer?.name || 'Anonyme', star_rating: review.rating || 5, comment: review.review_text || '', location_id: location.id });
+      const inserted = await pool.query(
+        'INSERT INTO reviews (location_id, google_review_id, reviewer_name, star_rating, comment, status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
+        [location.id, reviewId, review.reviewer?.name || 'Anonyme', review.rating || 5, review.review_text || '', 'new']
+      );
+      newReviews.push({ id: inserted.rows[0].id, reviewer_name: review.reviewer?.name || 'Anonyme', star_rating: review.rating || 5, comment: review.review_text || '', location_id: location.id });
     }
 
     console.log(`[FB SYNC] ${location.business_name}: ${newReviews.length} nouveaux avis`);
@@ -2170,12 +2183,12 @@ async function fetchPlayStoreReviews(location) {
 // PAGE RÉPONSE RAPIDE — /reply/:id
 // ─────────────────────────────────────────
 
-app.get('/reply/:id', (req, res) => {
-  const review = db.prepare(`
+app.get('/reply/:id', async (req, res) => {
+  const review = (await pool.query(`
     SELECT r.*, l.google_location_name, l.business_name
     FROM reviews r JOIN locations l ON r.location_id = l.id
-    WHERE r.id = ?
-  `).get(req.params.id);
+    WHERE r.id = $1
+  `, [req.params.id])).rows[0];
 
   if (!review || !review.generated_response) {
     return res.status(404).send('Avis introuvable ou réponse non générée.');
@@ -2298,13 +2311,14 @@ async function fetchAllGoogleReviewsPaginated(location) {
       for (const review of (data.reviews || [])) {
         if (review.reviewReply) continue;
         const reviewId = review.reviewId || review.name;
-        const existing = db.prepare('SELECT id FROM reviews WHERE google_review_id = ?').get(reviewId);
+        const existing = (await pool.query('SELECT id FROM reviews WHERE google_review_id = $1', [reviewId])).rows[0];
         if (existing) continue;
         const starRating = starMap[review.starRating] || 0;
-        const inserted = db.prepare(
-          'INSERT INTO reviews (location_id, google_review_id, reviewer_name, star_rating, comment, status) VALUES (?, ?, ?, ?, ?, ?)'
-        ).run(location.id, reviewId, review.reviewer?.displayName || 'Anonyme', starRating, review.comment || '', 'new');
-        allNew.push({ id: inserted.lastInsertRowid, star_rating: starRating, reviewer_name: review.reviewer?.displayName || 'Anonyme', comment: review.comment || '', location_id: location.id });
+        const inserted = await pool.query(
+          'INSERT INTO reviews (location_id, google_review_id, reviewer_name, star_rating, comment, status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
+          [location.id, reviewId, review.reviewer?.displayName || 'Anonyme', starRating, review.comment || '', 'new']
+        );
+        allNew.push({ id: inserted.rows[0].id, star_rating: starRating, reviewer_name: review.reviewer?.displayName || 'Anonyme', comment: review.comment || '', location_id: location.id });
       }
 
       pageToken = data.nextPageToken || null;
@@ -2319,7 +2333,7 @@ async function fetchAllGoogleReviewsPaginated(location) {
 }
 
 async function triggerFullBackfill(userId) {
-  const locations = db.prepare(`SELECT l.*, u.groq_key FROM locations l JOIN users u ON l.user_id = u.id WHERE l.user_id = ? AND l.active = 1`).all(userId);
+  const locations = (await pool.query(`SELECT l.*, u.groq_key FROM locations l JOIN users u ON l.user_id = u.id WHERE l.user_id = $1 AND l.active = 1`, [userId])).rows;
   let total = 0;
   for (const loc of locations) {
     if (!loc.refresh_token) continue;
@@ -2329,16 +2343,16 @@ async function triggerFullBackfill(userId) {
     if (loc.auto_respond && process.env.GROQ_API_KEY && reviews.length > 0) {
       for (const review of reviews) {
         try {
-          const dbReview = db.prepare('SELECT * FROM reviews WHERE id = ?').get(review.id);
+          const dbReview = (await pool.query('SELECT * FROM reviews WHERE id = $1', [review.id])).rows[0];
           const merged = { ...dbReview, ...loc };
           const response = await generateResponse(merged, process.env.GROQ_API_KEY);
-          db.prepare('UPDATE reviews SET generated_response = ? WHERE id = ?').run(response, review.id);
+          await pool.query('UPDATE reviews SET generated_response = $1 WHERE id = $2', [response, review.id]);
           await postGoogleReply(merged, response);
-          db.prepare('UPDATE reviews SET status = ?, responded_at = CURRENT_TIMESTAMP WHERE id = ?').run('posted', review.id);
+          await pool.query('UPDATE reviews SET status = $1, responded_at = CURRENT_TIMESTAMP WHERE id = $2', ['posted', review.id]);
           console.log(`[BACKFILL] ✅ Répondu à ${review.reviewer_name} pour ${loc.business_name}`);
         } catch (e) {
           console.error(`[BACKFILL] ❌ Erreur review ${review.id}:`, e.message);
-          db.prepare('UPDATE reviews SET status = ? WHERE id = ?').run('error', review.id);
+          await pool.query('UPDATE reviews SET status = $1 WHERE id = $2', ['error', review.id]);
         }
       }
     }
@@ -2370,9 +2384,9 @@ app.post('/webhook/stripe', express.raw({ type: 'application/json' }), async (re
     const email = session.customer_details?.email || session.customer_email;
     console.log(`[STRIPE] Paiement confirmé pour ${email}`);
     if (email) {
-      const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+      const user = (await pool.query('SELECT * FROM users WHERE email = $1', [email])).rows[0];
       if (user) {
-        db.prepare("UPDATE users SET plan = 'paid' WHERE id = ?").run(user.id);
+        await pool.query("UPDATE users SET plan = 'paid' WHERE id = $1", [user.id]);
         console.log(`[STRIPE] ✅ Plan mis à jour → paid pour ${email}`);
         // Email onboarding complet
         sendEmail(email, '🎉 Votre abonnement ReputIA est actif — Guide de configuration complet', emailOnboarding(email));
@@ -2395,9 +2409,9 @@ app.post('/api/admin/upgrade', async (req, res) => {
   if (!secret || secret !== process.env.ADMIN_SECRET) {
     return res.status(403).json({ error: 'Accès refusé' });
   }
-  const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+  const user = (await pool.query('SELECT * FROM users WHERE email = $1', [email])).rows[0];
   if (!user) return res.status(404).json({ error: 'Utilisateur introuvable' });
-  db.prepare("UPDATE users SET plan = 'paid' WHERE id = ?").run(user.id);
+  await pool.query("UPDATE users SET plan = 'paid' WHERE id = $1", [user.id]);
   const total = await triggerFullBackfill(user.id);
   console.log(`[ADMIN] ${email} passé en payant — ${total} anciens avis traités`);
   res.json({ ok: true, email, avisTraites: total });
@@ -2411,12 +2425,12 @@ async function runAutoResponder() {
   const now = new Date().toLocaleTimeString('fr-FR');
   console.log(`[CRON ${now}] Vérification des nouveaux avis...`);
 
-  const activeLocations = db.prepare(`
+  const activeLocations = (await pool.query(`
     SELECT l.*, u.groq_key, u.email as user_email
     FROM locations l
     JOIN users u ON l.user_id = u.id
     WHERE l.active = 1
-  `).all();
+  `)).rows;
 
   for (const location of activeLocations) {
     const newReviews = await fetchNewReviews(location);
@@ -2428,23 +2442,23 @@ async function runAutoResponder() {
     if (location.auto_respond && process.env.GROQ_API_KEY && newReviews.length > 0) {
       for (const review of newReviews) {
         try {
-          const dbReview = db.prepare('SELECT * FROM reviews WHERE id = ?').get(review.id);
+          const dbReview = (await pool.query('SELECT * FROM reviews WHERE id = $1', [review.id])).rows[0];
           const mergedReview = { ...dbReview, ...location };
 
           const response = await generateResponse(mergedReview, process.env.GROQ_API_KEY);
-          db.prepare('UPDATE reviews SET generated_response = ? WHERE id = ?').run(response, review.id);
+          await pool.query('UPDATE reviews SET generated_response = $1 WHERE id = $2', [response, review.id]);
 
           // Poster uniquement sur Google et Trustpilot (API disponibles)
           const name = location.google_location_name || '';
           if (name.startsWith('tp_')) {
             await postTrustpilotReply(mergedReview, review.google_review_id, response);
-            db.prepare('UPDATE reviews SET status = ?, responded_at = CURRENT_TIMESTAMP WHERE id = ?').run('posted', review.id);
+            await pool.query('UPDATE reviews SET status = $1, responded_at = CURRENT_TIMESTAMP WHERE id = $2', ['posted', review.id]);
           } else if (!name.startsWith('ta_') && !name.startsWith('fb_') && !name.startsWith('pj_') && !name.startsWith('tf_') && !name.startsWith('bk_') && !name.startsWith('ab_') && !name.startsWith('av_') && !name.startsWith('az_') && location.refresh_token) {
             await postGoogleReply(mergedReview, response);
-            db.prepare('UPDATE reviews SET status = ?, responded_at = CURRENT_TIMESTAMP WHERE id = ?').run('posted', review.id);
+            await pool.query('UPDATE reviews SET status = $1, responded_at = CURRENT_TIMESTAMP WHERE id = $2', ['posted', review.id]);
           } else {
             // Autres plateformes → généré, à poster manuellement
-            db.prepare('UPDATE reviews SET status = ? WHERE id = ?').run('generated', review.id);
+            await pool.query('UPDATE reviews SET status = $1 WHERE id = $2', ['generated', review.id]);
             // Email alerte à l'utilisateur
             const platformName = (location.google_location_name || '').split('_')[0];
             const platformLabels = { ta:'TripAdvisor', fb:'Facebook', pj:'Pages Jaunes', tf:'TheFork', bk:'Booking.com', ab:'Airbnb', av:'Avis Vérifiés', az:'Amazon', yl:'Yelp', cu:'Custplace' };
@@ -2461,7 +2475,7 @@ async function runAutoResponder() {
           console.log(`[AUTO] ✅ Répondu à ${review.reviewer_name} (${review.star_rating}★) pour ${location.business_name}`);
         } catch (e) {
           console.error(`[AUTO] ❌ Erreur pour review ${review.id}:`, e.message);
-          db.prepare('UPDATE reviews SET status = ? WHERE id = ?').run('error', review.id);
+          await pool.query('UPDATE reviews SET status = $1 WHERE id = $2', ['error', review.id]);
         }
       }
     }
@@ -2476,7 +2490,7 @@ setTimeout(runAutoResponder, 5000);
 // ─────────────────────────────────────────
 async function runTrialEmails() {
   const now = new Date();
-  const users = db.prepare("SELECT id, email, created_at, plan FROM users WHERE plan = 'trial'").all();
+  const users = (await pool.query("SELECT id, email, created_at, plan FROM users WHERE plan = 'trial'")).rows;
 
   for (const user of users) {
     const created = new Date(user.created_at);
@@ -2485,33 +2499,25 @@ async function runTrialEmails() {
 
     // J+5 (entre 5.0 et 6.0 jours depuis la création)
     if (diffDays >= 5 && diffDays < 6) {
-      const already = db.prepare("SELECT 1 FROM email_log WHERE user_id = ? AND type = 'trial_day5'").get(user.id);
+      const already = (await pool.query("SELECT 1 FROM email_log WHERE user_id = $1 AND type = 'trial_day5'", [user.id])).rows[0];
       if (!already) {
         await sendEmail(user.email, '⚠️ Plus que 2 jours — Votre essai ReputIA se termine bientôt', emailDay5(user.email));
-        db.prepare("INSERT INTO email_log (user_id, type, sent_at) VALUES (?, 'trial_day5', CURRENT_TIMESTAMP)").run(user.id);
+        await pool.query("INSERT INTO email_log (user_id, type, sent_at) VALUES ($1, 'trial_day5', CURRENT_TIMESTAMP)", [user.id]);
       }
     }
 
     // J+7 (entre 7.0 et 8.0 jours)
     if (diffDays >= 7 && diffDays < 8) {
-      const already = db.prepare("SELECT 1 FROM email_log WHERE user_id = ? AND type = 'trial_day7'").get(user.id);
+      const already = (await pool.query("SELECT 1 FROM email_log WHERE user_id = $1 AND type = 'trial_day7'", [user.id])).rows[0];
       if (!already) {
         await sendEmail(user.email, '🔒 Votre essai ReputIA est terminé — Continuez sans interruption', emailDay7(user.email));
-        db.prepare("INSERT INTO email_log (user_id, type, sent_at) VALUES (?, 'trial_day7', CURRENT_TIMESTAMP)").run(user.id);
+        await pool.query("INSERT INTO email_log (user_id, type, sent_at) VALUES ($1, 'trial_day7', CURRENT_TIMESTAMP)", [user.id]);
         // Passer le plan à 'expired'
-        db.prepare("UPDATE users SET plan = 'expired' WHERE id = ?").run(user.id);
+        await pool.query("UPDATE users SET plan = 'expired' WHERE id = $1", [user.id]);
       }
     }
   }
 }
-
-// Table de log des emails si elle n'existe pas
-db.exec(`CREATE TABLE IF NOT EXISTS email_log (
-  id         INTEGER PRIMARY KEY AUTOINCREMENT,
-  user_id    INTEGER REFERENCES users(id),
-  type       TEXT NOT NULL,
-  sent_at    DATETIME DEFAULT CURRENT_TIMESTAMP
-)`);
 
 cron.schedule('0 10 * * *', runTrialEmails);
 console.log('[EMAIL CRON] Relances essai programmées tous les jours à 10h');
