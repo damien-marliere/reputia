@@ -6,9 +6,9 @@ const { Pool } = require('pg');
 const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
 const bcrypt = require('bcryptjs');
 const cron = require('node-cron');
-const path = require('path');
+const path = require('path')
 const nodemailer = require('nodemailer');
-const { Resend } = require('resend');
+const { Resend } = require('resend')
 const Stripe = require('stripe');
 const stripe = process.env.STRIPE_SECRET_KEY ? Stripe(process.env.STRIPE_SECRET_KEY) : null;
 
