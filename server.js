@@ -2581,8 +2581,8 @@ async function runAutoResponder() {
   }
 }
 
-cron.schedule('0 * * * *', runAutoResponder);
-setTimeout(runAutoResponder, 5000);
+if (process.env.AUTO_SYNC === 'true') cron.schedule('0 * * * *', runAutoResponder); else console.log('[AUTO-SYNC] desactive (AUTO_SYNC!=true)');
+if (process.env.AUTO_SYNC === 'true') setTimeout(runAutoResponder, 5000);
 
 // ─────────────────────────────────────────
 // CRON — Emails relance essai (tous les jours à 10h)
