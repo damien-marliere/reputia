@@ -59,31 +59,38 @@
         </div>
       </div>
       <button class="btn" type="submit" id="btn-login">Se connecter</button>
-      <p style="text-align:center;margin-top:.75rem"><a href="#" onclick="showTab('reset');return false" style="color:#6b7280;font-size:.8rem;text-decoration:none">Mot de passe oublié ?</a></p>
+      <p style="text-align:center;margin-top:.75rem"><a href="#" onclick="showTab('forgot');return false" style="color:#6b7280;font-size:.8rem;text-decoration:none">Mot de passe oublié ?</a></p>
     </form>
 
-    <!-- RESET PASSWORD -->
-    <form id="form-reset" style="display:none" onsubmit="handleReset(event)">
-      <p style="color:#9ca3af;font-size:.85rem;margin-bottom:1rem">Entrez votre email et choisissez un nouveau mot de passe.</p>
+    <!-- FORGOT PASSWORD (demande de lien) -->
+    <form id="form-forgot" style="display:none" onsubmit="handleForgot(event)">
+      <p style="color:#9ca3af;font-size:.85rem;margin-bottom:1rem">Entrez votre email. Si un compte existe, vous recevrez un lien pour réinitialiser votre mot de passe (valable 1 heure).</p>
       <div class="form-group">
         <label>Email</label>
-        <input type="email" id="reset-email" placeholder="vous@exemple.com" required>
+        <input type="email" id="forgot-email" placeholder="vous@exemple.com" required>
       </div>
+      <button class="btn" type="submit" id="btn-forgot">Envoyer le lien de réinitialisation</button>
+      <p style="text-align:center;margin-top:.75rem"><a href="#" onclick="showTab('login');return false" style="color:#6b7280;font-size:.8rem;text-decoration:none">← Retour à la connexion</a></p>
+    </form>
+
+    <!-- NEW PASSWORD (via lien email) -->
+    <form id="form-newpw" style="display:none" onsubmit="handleNewPw(event)">
+      <p style="color:#9ca3af;font-size:.85rem;margin-bottom:1rem">Choisissez votre nouveau mot de passe.</p>
       <div class="form-group">
         <label>Nouveau mot de passe (6 caractères min. + 1 caractère spécial)</label>
         <div style="position:relative">
-          <input type="password" id="reset-password" placeholder="••••••••" minlength="6" required style="padding-right:42px">
-          <span onclick="togglePw('reset-password',this)" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);cursor:pointer;font-size:1.1rem;user-select:none" title="Afficher/masquer">👁</span>
+          <input type="password" id="newpw-password" placeholder="••••••••" minlength="6" required style="padding-right:42px">
+          <span onclick="togglePw('newpw-password',this)" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);cursor:pointer;font-size:1.1rem;user-select:none" title="Afficher/masquer">👁</span>
         </div>
       </div>
       <div class="form-group">
         <label>Confirmer le nouveau mot de passe</label>
         <div style="position:relative">
-          <input type="password" id="reset-password2" placeholder="••••••••" minlength="6" required style="padding-right:42px">
-          <span onclick="togglePw('reset-password2',this)" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);cursor:pointer;font-size:1.1rem;user-select:none" title="Afficher/masquer">👁</span>
+          <input type="password" id="newpw-password2" placeholder="••••••••" minlength="6" required style="padding-right:42px">
+          <span onclick="togglePw('newpw-password2',this)" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);cursor:pointer;font-size:1.1rem;user-select:none" title="Afficher/masquer">👁</span>
         </div>
       </div>
-      <button class="btn" type="submit" id="btn-reset">Réinitialiser le mot de passe</button>
+      <button class="btn" type="submit" id="btn-newpw">Réinitialiser le mot de passe</button>
       <p style="text-align:center;margin-top:.75rem"><a href="#" onclick="showTab('login');return false" style="color:#6b7280;font-size:.8rem;text-decoration:none">← Retour à la connexion</a></p>
     </form>
 
@@ -127,8 +134,9 @@ function showTab(tab) {
   document.getElementById('tab-signup').classList.toggle('active', tab === 'signup');
   document.getElementById('form-login').style.display = tab === 'login' ? '' : 'none';
   document.getElementById('form-signup').style.display = tab === 'signup' ? '' : 'none';
-  document.getElementById('form-reset').style.display = tab === 'reset' ? '' : 'none';
-  document.querySelector('.tabs').style.display = tab === 'reset' ? 'none' : 'flex';
+  document.getElementById('form-forgot').style.display = tab === 'forgot' ? '' : 'none';
+  document.getElementById('form-newpw').style.display = tab === 'newpw' ? '' : 'none';
+  document.querySelector('.tabs').style.display = (tab === 'forgot' || tab === 'newpw') ? 'none' : 'flex';
   showError('');
 }
 
@@ -194,42 +202,52 @@ async function handleSignup(e) {
     btn.textContent = 'Créer mon compte';
   }
 }
-async function handleReset(e) {
+async function handleForgot(e) {
   e.preventDefault();
-  const btn = document.getElementById('btn-reset');
-  btn.disabled = true;
-  btn.textContent = 'Réinitialisation…';
-  showError('');
+  const btn = document.getElementById('btn-forgot');
+  btn.disabled = true; btn.textContent = 'Envoi…'; showError('');
+  try {
+    await fetch('/api/forgot-password', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ email: document.getElementById('forgot-email').value })
+    });
+  } catch (e) {}
+  btn.disabled = false; btn.textContent = 'Envoyer le lien de réinitialisation';
+  alert('Si un compte existe avec cet email, un lien de réinitialisation vient d\'être envoyé. Pensez à vérifier vos spams.');
+  showTab('login');
+}
 
-  const rpw = document.getElementById('reset-password').value;
-  const rpw2 = document.getElementById('reset-password2').value;
+async function handleNewPw(e) {
+  e.preventDefault();
+  const btn = document.getElementById('btn-newpw');
+  btn.disabled = true; btn.textContent = 'Réinitialisation…'; showError('');
+  const rpw = document.getElementById('newpw-password').value;
+  const rpw2 = document.getElementById('newpw-password2').value;
   if (rpw !== rpw2) { showError('Les deux mots de passe ne correspondent pas.'); btn.disabled=false; btn.textContent='Réinitialiser le mot de passe'; return; }
   if (!/[^A-Za-z0-9]/.test(rpw)) { showError('Le mot de passe doit contenir au moins un caractère spécial (ex : ! ? @ # $).'); btn.disabled=false; btn.textContent='Réinitialiser le mot de passe'; return; }
-
   const res = await fetch('/api/reset-password', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({
-      email: document.getElementById('reset-email').value,
-      new_password: document.getElementById('reset-password').value
-    })
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ token: window.__resetToken, new_password: rpw })
   });
   const data = await res.json();
-
   if (data.ok) {
-    showError('');
     alert('Mot de passe réinitialisé ! Vous pouvez maintenant vous connecter.');
+    window.history.replaceState({}, '', '/connexion');
     showTab('login');
   } else {
-    showError(data.error || 'Erreur');
-    btn.disabled = false;
-    btn.textContent = 'Réinitialiser le mot de passe';
+    showError(data.error || 'Erreur'); btn.disabled=false; btn.textContent='Réinitialiser le mot de passe';
   }
 }
 
 // Auto-ouvre l'onglet inscription si ?signup=1
-if (new URLSearchParams(window.location.search).get('signup') === '1') {
+var __params = new URLSearchParams(window.location.search);
+if (__params.get('signup') === '1') {
   showTab('signup');
+}
+// Lien de réinitialisation reçu par email (?token=...)
+window.__resetToken = __params.get('token');
+if (window.__resetToken) {
+  showTab('newpw');
 }
 </script>
 </body>
