@@ -542,6 +542,8 @@ const TP_REDIRECT_URI = process.env.TRUSTPILOT_REDIRECT_URI || 'http://localhost
 // ─────────────────────────────────────────
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'landing.html')));
+app.get(['/connexion', '/login', '/app'], (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(session({
   secret: process.env.SESSION_SECRET || 'reputia-secret',
