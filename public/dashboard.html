@@ -288,17 +288,25 @@ async function init() {
   }
   me = await res.json();
 
-  // Formule Gratuite (essai terminé ou compte gratuit) : Console IA dispo, Google auto = Pro
-  me.isFree = (me.plan === 'free' || me.plan === 'expired');
-  if (me.isFree) {
-    var fb = document.createElement('div');
-    fb.style.cssText = 'background:linear-gradient(135deg,#1a1a2e,#241a10);border-bottom:1px solid #3a2e12;color:#f5d9a8;font:600 14px -apple-system,sans-serif;padding:11px 18px;display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;position:sticky;top:0;z-index:9000';
-    fb.innerHTML = '⭐ Formule Gratuite — Console IA illimitée sur toutes les plateformes. <span style="color:#9a9ab5;font-weight:500">Automatisez Google en passant au</span> <a href="https://buy.stripe.com/3cIfZjct64a9gSAeRx3VC09" style="background:linear-gradient(135deg,#f59e0b,#f97316);color:#000;font-weight:800;padding:5px 14px;border-radius:9px;text-decoration:none">Pro — 19€/mois 🚀</a>';
-    document.body.insertBefore(fb, document.body.firstChild);
-    // Le bouton "Connecter Google" devient un appel à l'upgrade
-    document.querySelectorAll('.btn-connect').forEach(function(b){
-      if(/Google/i.test(b.textContent)){ b.textContent='⭐ Passer au Pro pour Google'; b.setAttribute('onclick',"location.href='https://buy.stripe.com/3cIfZjct64a9gSAeRx3VC09'"); }
-    });
+  // Plan expiré → bannière + redirection vers paiement
+  if (me.plan === 'expired') {
+    document.body.innerHTML = `
+      <div style="min-height:100vh;background:#05050a;display:flex;align-items:center;justify-content:center;font-family:-apple-system,sans-serif;padding:24px">
+        <div style="max-width:520px;text-align:center">
+          <div style="font-size:56px;margin-bottom:16px">⏰</div>
+          <h1 style="font-size:28px;font-weight:800;color:#f1f1f8;letter-spacing:-1px;margin-bottom:12px">Votre essai gratuit est terminé</h1>
+          <p style="font-size:16px;color:#9898b5;line-height:1.7;margin-bottom:32px">
+            Vos 7 jours d'essai sur Google My Business sont arrivés à terme.<br>
+            Passez à l'abonnement pour continuer à répondre automatiquement à tous vos avis.
+          </p>
+          <a href="https://buy.stripe.com/3cIfZjct64a9gSAeRx3VC09" style="display:inline-block;background:linear-gradient(135deg,#f59e0b,#f97316);color:#000;font-weight:800;font-size:17px;padding:18px 40px;border-radius:14px;text-decoration:none;box-shadow:0 4px 30px rgba(245,158,11,.35)">
+            🚀 Activer mon abonnement — 19€/mois
+          </a>
+          <p style="font-size:13px;color:#6b6b8a;margin-top:20px">Sans engagement · Remboursé 30 jours · Support 🇫🇷</p>
+          <p style="margin-top:16px"><a href="/api/logout" style="font-size:13px;color:#6b6b8a">Se déconnecter</a></p>
+        </div>
+      </div>`;
+    return;
   }
 
   document.getElementById('nav-email').textContent = me.email;
@@ -313,7 +321,6 @@ async function init() {
   if (params.get('error') === 'tp_denied') notify('❌ Autorisation Trustpilot refusée', 'error');
   if (params.get('error') === 'tp_failed') notify('❌ Erreur de connexion Trustpilot', 'error');
   if (params.get('error') === 'tp_not_configured') notify('❌ Trustpilot non configuré — ajoutez les clés dans .env', 'error');
-  if (params.get('upgrade') === 'google') notify('🔒 Google en automatique est réservé à la formule Pro (19€/mois). La Console IA reste gratuite et illimitée.', 'error');
   window.history.replaceState({}, '', '/dashboard.html');
 
   await loadLocations();
@@ -322,9 +329,6 @@ async function init() {
 
   // Pre-fill groq key
   if (me.groq_key) document.getElementById('groq-key-input').value = me.groq_key;
-
-  // Formule Gratuite : la Console IA est l'outil principal → on l'ouvre par défaut
-  if (me.isFree) showView('console');
 }
 
 // ─── NAVIGATION ─────────────────────────
@@ -669,7 +673,6 @@ async function saveGroqKey() {
 // ─── GOOGLE ─────────────────────────────
 
 function connectGoogle() {
-  if (me && me.isFree) { location.href = 'https://buy.stripe.com/3cIfZjct64a9gSAeRx3VC09'; return; }
   window.location.href = '/auth/google';
 }
 
