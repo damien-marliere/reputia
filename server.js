@@ -574,6 +574,9 @@ app.post('/api/signup', async (req, res) => {
   if (!email || !password || password.length < 6) {
     return res.json({ error: 'Email valide et mot de passe (6 car. min) requis' });
   }
+  if (!/[^A-Za-z0-9]/.test(password)) {
+    return res.json({ error: 'Le mot de passe doit contenir au moins un caractère spécial' });
+  }
   try {
     const hash = await bcrypt.hash(password, 10);
     const result = await pool.query('INSERT INTO users (email, password) VALUES ($1, $2) RETURNING id', [email, hash]);
@@ -604,6 +607,9 @@ app.post('/api/reset-password', async (req, res) => {
   const { email, new_password } = req.body;
   if (!email || !new_password || new_password.length < 6) {
     return res.json({ error: 'Email et nouveau mot de passe (6 car. min) requis' });
+  }
+  if (!/[^A-Za-z0-9]/.test(new_password)) {
+    return res.json({ error: 'Le mot de passe doit contenir au moins un caractère spécial' });
   }
   const user = (await pool.query('SELECT id FROM users WHERE email = $1', [email])).rows[0];
   if (!user) return res.json({ error: 'Aucun compte avec cet email' });
