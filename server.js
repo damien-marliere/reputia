@@ -7,6 +7,7 @@ const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejec
 const bcrypt = require('bcryptjs');
 const cron = require('node-cron');
 const path = require('path')
+const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const { Resend } = require('resend')
 const Stripe = require('stripe');
@@ -414,6 +415,16 @@ function emailSemiAutoReview(userEmail, reviewerName, platform, stars, reviewTex
   `);
 }
 
+function emailReset(email, link) {
+  return emailBase(`
+    <h1>🔑 Réinitialisation de votre mot de passe</h1>
+    <p>Vous avez demandé à réinitialiser le mot de passe de votre compte ReputIA (<strong>${email}</strong>).</p>
+    <p>Cliquez sur le bouton ci-dessous pour choisir un nouveau mot de passe. Ce lien est valable <strong>1 heure</strong> et ne peut servir qu'une seule fois.</p>
+    <p style="text-align:center;margin:28px 0"><a href="${link}" style="display:inline-block;background:linear-gradient(135deg,#f59e0b,#f97316);color:#000;font-weight:800;font-size:16px;padding:14px 34px;border-radius:12px;text-decoration:none">Réinitialiser mon mot de passe</a></p>
+    <p style="font-size:13px;color:#9ca3af">Si vous n'êtes pas à l'origine de cette demande, ignorez simplement cet email — votre mot de passe restera inchangé.</p>
+  `);
+}
+
 async function sendEmail(to, subject, html) {
   if (!resendClient) {
     console.log(`[EMAIL] RESEND_API_KEY manquante — email non envoyé à ${to}`);
@@ -514,6 +525,13 @@ async function initDB() {
     type       TEXT NOT NULL,
     sent_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   )`);
+  await pool.query(`CREATE TABLE IF NOT EXISTS password_resets (
+    token       TEXT PRIMARY KEY,
+    user_id     INTEGER REFERENCES users(id),
+    expires_at  TIMESTAMP NOT NULL,
+    used        INTEGER DEFAULT 0,
+    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`);
   // Migration colonnes manquantes
   try { await pool.query("ALTER TABLE locations ADD COLUMN IF NOT EXISTS platform_url TEXT DEFAULT ''") } catch(e) {}
 }
@@ -603,18 +621,39 @@ app.post('/api/login', async (req, res) => {
   res.json({ ok: true });
 });
 
+app.post('/api/forgot-password', async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.json({ error: 'Email requis' });
+  try {
+    const user = (await pool.query('SELECT id FROM users WHERE email = $1', [email])).rows[0];
+    if (user) {
+      const token = crypto.randomBytes(32).toString('hex');
+      const expires = new Date(Date.now() + 60 * 60 * 1000);
+      await pool.query('INSERT INTO password_resets (token, user_id, expires_at, used) VALUES ($1, $2, $3, 0)', [token, user.id, expires]);
+      const base = process.env.APP_URL || 'https://reputia.fr';
+      const link = base + '/connexion?token=' + token;
+      sendEmail(email, '🔑 Réinitialisation de votre mot de passe ReputIA', emailReset(email, link));
+    }
+  } catch (e) { console.error('[FORGOT]', e.message); }
+  // Réponse identique que le compte existe ou non (anti-énumération)
+  res.json({ ok: true });
+});
+
 app.post('/api/reset-password', async (req, res) => {
-  const { email, new_password } = req.body;
-  if (!email || !new_password || new_password.length < 6) {
-    return res.json({ error: 'Email et nouveau mot de passe (6 car. min) requis' });
+  const { token, new_password } = req.body;
+  if (!token || !new_password || new_password.length < 6) {
+    return res.json({ error: 'Lien invalide ou mot de passe (6 car. min) manquant' });
   }
   if (!/[^A-Za-z0-9]/.test(new_password)) {
     return res.json({ error: 'Le mot de passe doit contenir au moins un caractère spécial' });
   }
-  const user = (await pool.query('SELECT id FROM users WHERE email = $1', [email])).rows[0];
-  if (!user) return res.json({ error: 'Aucun compte avec cet email' });
+  const row = (await pool.query('SELECT * FROM password_resets WHERE token = $1', [token])).rows[0];
+  if (!row || row.used || new Date(row.expires_at) < new Date()) {
+    return res.json({ error: 'Lien de réinitialisation invalide ou expiré. Refaites une demande.' });
+  }
   const hash = await bcrypt.hash(new_password, 10);
-  await pool.query('UPDATE users SET password = $1 WHERE email = $2', [hash, email]);
+  await pool.query('UPDATE users SET password = $1 WHERE id = $2', [hash, row.user_id]);
+  await pool.query('UPDATE password_resets SET used = 1 WHERE token = $1', [token]);
   res.json({ ok: true });
 });
 
