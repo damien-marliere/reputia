@@ -516,8 +516,6 @@ async function initDB() {
   )`);
   // Migration colonnes manquantes
   try { await pool.query("ALTER TABLE locations ADD COLUMN IF NOT EXISTS platform_url TEXT DEFAULT ''") } catch(e) {}
-  // Les comptes 'expired' deviennent 'free' (Console IA gratuite à vie, Google auto = Pro)
-  try { await pool.query("UPDATE users SET plan = 'free' WHERE plan = 'expired'") } catch(e) {}
 }
 initDB().catch(console.error);
 
@@ -561,7 +559,9 @@ const requireAuth = (req, res, next) => {
 
 const requireActivePlan = async (req, res, next) => {
   const user = (await pool.query('SELECT plan FROM users WHERE id = $1', [req.session.userId])).rows[0];
-  // 'free' et 'paid' et 'trial' sont tous actifs. (Plus de blocage total : la formule Gratuite garde la Console IA.)
+  if (user && user.plan === 'expired') {
+    return res.status(403).json({ error: 'Essai terminé', expired: true, stripeUrl: 'https://buy.stripe.com/3cIfZjct64a9gSAeRx3VC09' });
+  }
   next();
 };
 
@@ -634,12 +634,7 @@ app.post('/api/settings', requireAuth, async (req, res) => {
 // ROUTES GOOGLE OAUTH
 // ─────────────────────────────────────────
 
-app.get('/auth/google', requireAuth, async (req, res) => {
-  // Google en automatique = fonctionnalité Pro. Les comptes Gratuit sont invités à passer Pro.
-  const u = (await pool.query('SELECT plan FROM users WHERE id = $1', [req.session.userId])).rows[0];
-  if (u && !['trial','paid'].includes(u.plan)) {
-    return res.redirect('/dashboard.html?upgrade=google');
-  }
+app.get('/auth/google', requireAuth, (req, res) => {
   const url = oauth2Client.generateAuthUrl({
     access_type: 'offline',
     scope: SCOPES,
@@ -2618,8 +2613,8 @@ async function runTrialEmails() {
       if (!already) {
         await sendEmail(user.email, '🔒 Votre essai ReputIA est terminé — Continuez sans interruption', emailDay7(user.email));
         await pool.query("INSERT INTO email_log (user_id, type, sent_at) VALUES ($1, 'trial_day7', CURRENT_TIMESTAMP)", [user.id]);
-        // Fin d'essai → bascule en formule Gratuite (Console IA reste dispo, Google auto réservé au Pro)
-        await pool.query("UPDATE users SET plan = 'free' WHERE id = $1", [user.id]);
+        // Passer le plan à 'expired'
+        await pool.query("UPDATE users SET plan = 'expired' WHERE id = $1", [user.id]);
       }
     }
   }
