@@ -562,6 +562,11 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'landing.html')));
 app.get(['/connexion', '/login', '/app'], (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
+app.get('/avis-plateformes', (req, res) => res.sendFile(path.join(__dirname, 'public', 'avis-plateformes.html')));
+app.get('/repondre-aux-avis-google', (req, res) => res.sendFile(path.join(__dirname, 'public', 'repondre-avis-google.html')));
+app.get('/repondre-aux-avis-trustpilot', (req, res) => res.sendFile(path.join(__dirname, 'public', 'repondre-avis-trustpilot.html')));
+app.get('/repondre-aux-avis-tripadvisor', (req, res) => res.sendFile(path.join(__dirname, 'public', 'repondre-avis-tripadvisor.html')));
+app.get('/repondre-aux-avis-booking', (req, res) => res.sendFile(path.join(__dirname, 'public', 'repondre-avis-booking.html')));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(session({
   secret: process.env.SESSION_SECRET || 'reputia-secret',
