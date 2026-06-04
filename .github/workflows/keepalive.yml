@@ -1,0 +1,17 @@
+name: Keep reputia.fr awake
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'   # toutes les 10 minutes
+  workflow_dispatch:          # permet de lancer manuellement
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping le site (réveille l'instance Render)
+        run: |
+          for url in "https://reputia.fr/" "https://reputia.fr/avis-plateformes"; do
+            echo "Ping $url"
+            curl -sS -m 40 -o /dev/null -w "  -> %{http_code} en %{time_total}s\n" "$url" || echo "  -> échec (ignoré)"
+          done
