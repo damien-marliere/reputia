@@ -250,5 +250,10 @@ if (window.__resetToken) {
   showTab('newpw');
 }
 </script>
+<div id="ck-banner" style="position:fixed;bottom:16px;left:16px;right:16px;max-width:540px;margin:0 auto;background:#15151f;border:1px solid #2a2a3c;border-radius:14px;padding:15px 18px;z-index:99998;box-shadow:0 8px 40px rgba(0,0,0,.55);font:14px/1.55 -apple-system,BlinkMacSystemFont,Arial,sans-serif;color:#cfd0e0;display:none">
+  <div>🍪 Ce site utilise uniquement des cookies <strong>nécessaires</strong> à son fonctionnement (votre session de connexion). Aucun cookie publicitaire ni de traçage. <a href="/confidentialite.html" style="color:#f59e0b">En savoir plus</a>.</div>
+  <div style="text-align:right;margin-top:10px"><button onclick="ckOk()" style="background:linear-gradient(135deg,#f59e0b,#f97316);color:#111;font-weight:800;border:none;padding:8px 18px;border-radius:9px;cursor:pointer">J'ai compris</button></div>
+</div>
+<script>function ckOk(){try{localStorage.setItem('reputia_cookies','1')}catch(e){}var b=document.getElementById('ck-banner');if(b)b.style.display='none';}(function(){var show=true;try{if(localStorage.getItem('reputia_cookies'))show=false;}catch(e){}if(show){var b=document.getElementById('ck-banner');if(b)b.style.display='block';}})();</script>
 </body>
 </html>
