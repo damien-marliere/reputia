@@ -534,6 +534,11 @@ async function initDB() {
   )`);
   // Migration colonnes manquantes
   try { await pool.query("ALTER TABLE locations ADD COLUMN IF NOT EXISTS platform_url TEXT DEFAULT ''") } catch(e) {}
+  await pool.query(`CREATE TABLE IF NOT EXISTS establishment_trials (
+    location_key  TEXT PRIMARY KEY,
+    first_user_id INTEGER REFERENCES users(id),
+    created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`);
 }
 initDB().catch(console.error);
 
@@ -791,6 +796,13 @@ app.get('/auth/google/callback', async (req, res) => {
       }
     }
 
+    // Essai gratuit : repondre aux 10 avis les plus recents (plafond + anti-abus geres dans triggerFullBackfill)
+    try {
+      const cu = (await pool.query('SELECT plan FROM users WHERE id = $1', [userId])).rows[0];
+      if (cu && cu.plan === 'trial') {
+        triggerFullBackfill(userId).then(t => console.log(`[ESSAI] Backfill essai termine: ${t} avis pour user ${userId}`)).catch(e => console.error('[ESSAI] Backfill error:', e.message));
+      }
+    } catch (e) { console.error('[ESSAI] trigger error:', e.message); }
     res.redirect(`/dashboard.html?connected=1&locations=${locationCount}`);
   } catch (e) {
     console.error('Erreur OAuth callback:', e.message);
@@ -2484,11 +2496,29 @@ async function fetchAllGoogleReviewsPaginated(location) {
 }
 
 async function triggerFullBackfill(userId) {
+  const u = (await pool.query('SELECT plan FROM users WHERE id = $1', [userId])).rows[0] || {};
+  const isTrial = u.plan === 'trial';
   const locations = (await pool.query(`SELECT l.*, u.groq_key FROM locations l JOIN users u ON l.user_id = u.id WHERE l.user_id = $1 AND l.active = 1`, [userId])).rows;
   let total = 0;
   for (const loc of locations) {
     if (!loc.refresh_token) continue;
-    const reviews = await fetchAllGoogleReviewsPaginated(loc);
+    // Anti-abus : un seul essai gratuit par fiche Google (cle = google_location_name)
+    const estabKey = loc.google_location_name;
+    if (estabKey) {
+      const owner = (await pool.query('SELECT first_user_id FROM establishment_trials WHERE location_key = $1', [estabKey])).rows[0];
+      if (!owner) {
+        await pool.query('INSERT INTO establishment_trials (location_key, first_user_id) VALUES ($1, $2) ON CONFLICT (location_key) DO NOTHING', [estabKey, userId]);
+      } else if (owner.first_user_id !== userId && isTrial) {
+        console.log(`[ANTI-ABUS] Fiche ${estabKey} a deja consomme son essai gratuit -> aucune reponse gratuite pour user ${userId} (doit payer)`);
+        continue;
+      }
+    }
+    let reviews = await fetchAllGoogleReviewsPaginated(loc);
+    // Plafond essai gratuit : 10 avis les plus recents
+    if (isTrial && reviews.length > 10) {
+      reviews = reviews.slice().sort((a, b) => new Date(b.created_at || b.create_time || 0) - new Date(a.created_at || a.create_time || 0)).slice(0, 10);
+      console.log(`[ESSAI] Plafond de 10 avis applique pour ${loc.business_name} (user ${userId})`);
+    }
     total += reviews.length;
     // Générer et poster les réponses immédiatement
     if (loc.auto_respond && process.env.GROQ_API_KEY && reviews.length > 0) {
