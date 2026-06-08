@@ -597,6 +597,34 @@ const requireActivePlan = async (req, res, next) => {
 // ROUTES AUTH
 // ─────────────────────────────────────────
 
+// ── Démo publique (landing) : générer une réponse IA sans compte ──
+const __demoHits = {};
+app.post('/api/public-demo', async (req, res) => {
+  try {
+    const ip = (req.headers['x-forwarded-for'] || req.ip || '').toString().split(',')[0].trim();
+    const now = Date.now();
+    __demoHits[ip] = (__demoHits[ip] || []).filter(t => now - t < 3600000);
+    if (__demoHits[ip].length >= 8) {
+      return res.status(429).json({ error: 'Limite de démo atteinte. Réessayez dans une heure ou lancez votre essai gratuit.' });
+    }
+    __demoHits[ip].push(now);
+    const groqKey = process.env.GROQ_API_KEY;
+    if (!groqKey) return res.json({ error: 'Service IA temporairement indisponible' });
+    const comment = (req.body.comment || '').toString().slice(0, 1000);
+    if (!comment.trim()) return res.json({ error: 'Veuillez coller un avis.' });
+    let stars = parseInt(req.body.star_rating, 10);
+    if (!(stars >= 1 && stars <= 5)) stars = 5;
+    const allowedTones = ['chaleureux', 'professionnel', 'decontracte', 'elegant'];
+    const tone = allowedTones.includes(req.body.tone) ? req.body.tone : 'professionnel';
+    const businessType = (req.body.business_type || 'etablissement').toString().slice(0, 60);
+    const review = { tone, star_rating: stars, business_name: 'votre etablissement', business_type: businessType, reviewer_name: 'un client', comment };
+    const response = await generateResponse(review, groqKey);
+    res.json({ ok: true, response });
+  } catch (e) {
+    res.json({ error: e.message || 'Erreur' });
+  }
+});
+
 app.post('/api/signup', async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password || password.length < 6) {
