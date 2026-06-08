@@ -804,6 +804,29 @@ footer{background:var(--bg);border-top:1px solid var(--border);padding:52px 24px
   </div>
 </section>
 
+<!-- DEMO INTERACTIVE (essai IA sans compte) -->
+<section class="demo-live" id="demo-live" style="padding:64px 20px;background:#0c0c12;border-top:1px solid #262636">
+  <div style="max-width:760px;margin:0 auto;text-align:center">
+    <div style="color:#f59e0b;font-weight:700;letter-spacing:2px;font-size:13px;margin-bottom:8px">✦ ESSAI EN DIRECT</div>
+    <h2 style="font-size:clamp(26px,4vw,40px);margin:0 0 10px;color:#fff">Testez l'IA tout de suite</h2>
+    <p style="color:#9aa;max-width:560px;margin:0 auto 28px">Collez un avis client, choisissez la note et le ton : l'IA rédige la réponse parfaite en quelques secondes. Sans inscription.</p>
+    <div style="background:#15151f;border:1px solid #262636;border-radius:16px;padding:22px;text-align:left">
+      <textarea id="pd-comment" rows="3" placeholder="Collez ici un avis client... ex : Tres bon accueil mais l'attente etait un peu longue." style="width:100%;box-sizing:border-box;background:#0c0c12;border:1px solid #2e2e40;color:#e8e8f0;border-radius:10px;padding:12px;font-size:15px;font-family:inherit;resize:vertical"></textarea>
+      <div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:12px">
+        <label style="color:#9aa;font-size:13px;flex:1;min-width:120px">Note<br><select id="pd-stars" style="width:100%;margin-top:4px;background:#0c0c12;border:1px solid #2e2e40;color:#e8e8f0;border-radius:8px;padding:9px"><option value="5">5 etoiles</option><option value="4">4 etoiles</option><option value="3">3 etoiles</option><option value="2">2 etoiles</option><option value="1">1 etoile</option></select></label>
+        <label style="color:#9aa;font-size:13px;flex:1;min-width:120px">Type d'etablissement<br><input id="pd-type" value="restaurant" style="width:100%;box-sizing:border-box;margin-top:4px;background:#0c0c12;border:1px solid #2e2e40;color:#e8e8f0;border-radius:8px;padding:9px"></label>
+        <label style="color:#9aa;font-size:13px;flex:1;min-width:120px">Ton<br><select id="pd-tone" style="width:100%;margin-top:4px;background:#0c0c12;border:1px solid #2e2e40;color:#e8e8f0;border-radius:8px;padding:9px"><option value="professionnel">Professionnel</option><option value="chaleureux">Chaleureux</option><option value="decontracte">Decontracte</option><option value="elegant">Elegant</option></select></label>
+      </div>
+      <button id="pd-btn" onclick="pdGenerate()" style="margin-top:16px;width:100%;background:linear-gradient(135deg,#f59e0b,#f97316);color:#1a1320;font-weight:800;border:0;border-radius:10px;padding:14px;font-size:16px;cursor:pointer">Generer la reponse IA</button>
+      <div id="pd-result" style="display:none;margin-top:16px;background:#0c0c12;border:1px solid #2e2e40;border-left:3px solid #f59e0b;border-radius:10px;padding:14px;color:#e8e8f0;line-height:1.6"></div>
+      <div id="pd-cta" style="display:none;margin-top:14px;text-align:center"><a href="/connexion?signup=1" style="display:inline-block;background:#fff;color:#1a1320;font-weight:700;text-decoration:none;border-radius:10px;padding:12px 22px">Automatiser mes avis - 7 jours gratuits</a></div>
+    </div>
+  </div>
+</section>
+<script>
+async function pdGenerate(){var b=document.getElementById('pd-btn'),r=document.getElementById('pd-result'),c=document.getElementById('pd-cta');var comment=document.getElementById('pd-comment').value.trim();if(!comment){r.style.display='block';r.textContent='Veuillez coller un avis.';return;}b.disabled=true;var old=b.textContent;b.textContent='Generation...';r.style.display='block';r.textContent='Redaction en cours...';try{var res=await fetch('/api/public-demo',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({comment:comment,star_rating:document.getElementById('pd-stars').value,business_type:document.getElementById('pd-type').value,tone:document.getElementById('pd-tone').value})});var d=await res.json();if(d.ok&&d.response){r.textContent=d.response;c.style.display='block';}else{r.textContent=d.error||'Service indisponible, reessayez.';}}catch(e){r.textContent='Erreur reseau, reessayez.';}b.disabled=false;b.textContent=old;}
+</script>
+
 <!-- PLATFORMS -->
 <section class="platforms" id="platforms">
   <div class="sec-inner">
