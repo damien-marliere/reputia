@@ -618,7 +618,7 @@ app.post('/api/public-demo', async (req, res) => {
     const tone = allowedTones.includes(req.body.tone) ? req.body.tone : 'professionnel';
     const businessType = (req.body.business_type || 'etablissement').toString().slice(0, 60);
     const review = { tone, star_rating: stars, business_name: 'votre etablissement', business_type: businessType, reviewer_name: 'un client', comment };
-    const response = await generateResponse(review, groqKey);
+    const response = await generateResponse(review, groqKey, req.body.lang === 'en' ? 'en' : 'fr');
     res.json({ ok: true, response });
   } catch (e) {
     res.json({ error: e.message || 'Erreur' });
@@ -1391,7 +1391,27 @@ async function storeScrapedReviews(reviews, location, prefix) {
 // FONCTIONS CORE
 // ─────────────────────────────────────────
 
-async function generateResponse(review, groqKey) {
+async function generateResponse(review, groqKey, lang) {
+  if (lang === 'en') {
+    const toneMapEn = { 'chaleureux':'warm and human, like talking to a loyal friend', 'professionnel':'professional and courteous, perfectly representing the business', 'decontracte':'relaxed and friendly, with a light touch', 'elegant':'elegant and refined, with polished wording' };
+    const toneDescEn = toneMapEn[review.tone] || toneMapEn['professionnel'];
+    let starRulesEn;
+    if (review.star_rating >= 4) { starRulesEn = 'Thank them warmly, mention a specific detail from the review, and invite them to come back soon.'; }
+    else if (review.star_rating === 3) { starRulesEn = 'Thank them for the feedback, acknowledge the areas to improve, and show that you are listening.'; }
+    else { starRulesEn = 'Offer sincere, empathetic apologies, do not be defensive, and propose a concrete solution or direct contact.'; }
+    const promptEn = `You are the review-response assistant for "${review.business_name}", a ${review.business_type || 'business'}.
+
+Review from ${review.reviewer_name || 'a customer'} - Rating: ${review.star_rating}/5 stars
+"${review.comment || '(No comment)'}"
+
+Write ONE reply in English (3-5 sentences max) with this tone: ${toneDescEn}.
+STRICT RULES: ${starRulesEn}
+Do not use quotation marks. Start directly with the reply.`;
+    const rEn = await fetch('https://api.groq.com/openai/v1/chat/completions', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${groqKey}` }, body: JSON.stringify({ model: 'llama-3.3-70b-versatile', messages: [{ role: 'user', content: promptEn }], temperature: 0.7, max_tokens: 250 }) });
+    if (!rEn.ok) { const e = await rEn.json().catch(() => ({})); throw new Error(e.error?.message || `Groq API error ${rEn.status}`); }
+    const dEn = await rEn.json();
+    return dEn.choices?.[0]?.message?.content?.trim() || 'Thank you so much for your review.';
+  }
   const toneMap = {
     'chaleureux':    'chaleureux et humain, comme si tu parlais à un ami fidèle',
     'professionnel': 'professionnel et courtois, représentant parfaitement l\'établissement',
